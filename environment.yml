@@ -6,3 +6,4 @@ dependencies:
   - numpy>=1.22
   - matplotlib>=3.5
   - numba>=0.56
+  - pandas>=1.4
