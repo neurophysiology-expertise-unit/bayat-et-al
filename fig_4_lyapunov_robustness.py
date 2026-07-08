@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
 
+from plotstyle import apply_style, save_fig
+
 # ============================================================
 # OPERATORS
 # ============================================================
@@ -274,7 +276,8 @@ for Nx, Ny in sizes:
 # ============================================================
 # PLOTS
 # ============================================================
-fig, ax = plt.subplots(1, 3, figsize=(15, 4))
+apply_style()
+fig, ax = plt.subplots(1, 3, figsize=(14, 4))
 
 # ------------------------------------------------------------
 # LLE
@@ -319,5 +322,7 @@ for size, data in analysis.items():
     ax[1].set_ylabel("Delta Lambda")
     ax[1].legend(fontsize=8)
 
-plt.tight_layout()
+fig.tight_layout()
+save_fig(fig, "Figure_4")
+print("Saved Figure_4.pdf / .png")
 plt.show()

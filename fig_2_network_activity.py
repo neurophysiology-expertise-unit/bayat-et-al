@@ -1,254 +1,121 @@
+#!/usr/bin/env python3
+"""
+Figure 2 -- network-level calcium activity across extracellular ATP.
+
+An example 10x10 astrocyte network is driven at three ATP levels (low / intermediate
+/ high, matching Fig 1). Top row: per-cell activity rasters (cell index vs time),
+shown on a SHARED colour scale so the three regimes are directly comparable. Bottom
+row: representative calcium traces from five cells. As ATP rises the network moves
+from sparse, weakly coordinated activity to fast, spatially fragmented oscillation.
+
+Same network model as Fig 3 (activity-dependent diffusive coupling that ATP
+suppresses). Time is reported in seconds (SEC_PER_AU), consistent with Fig 1.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 
+from plotstyle import apply_style, save_fig
 
-np.random.seed(290) # 53 11 22 29 28 19 16 49 55 57 60 65 74 76 
-# 80 89 118 119 145 146 147 191 204 290
+np.random.seed(290)
 
 # ============================================================
-# GRID
+# GRID / TIME
 # ============================================================
-
-Nx = 10
-Ny = 10
+Nx = Ny = 10
 N = Nx * Ny
-
-# ============================================================
-# TIME
-# ============================================================
-
 dt = 0.0034
-T = 1000
-
+SEC_PER_AU = 1.0
+T = 500
 steps = int(T / dt)
-
 t = np.arange(steps) * dt
-
-# ============================================================
-# ATP CONDITIONS
-# ============================================================
-
-ATP_conditions = [("Low ATP", 0.19),("High ATP", 0.9)]
-
-# ============================================================
-# BASE NOISE
-# ============================================================
 
 sigma = 0.4
 
-# ============================================================
-# REPRESENTATIVE CELLS
-# ============================================================
+ATP_conditions = [("Low ATP", 0.19), ("Intermediate ATP", 0.27), ("High ATP", 0.9)]
 
-cells = [
-    (1,1),
-    (2,7),
-    (5,5),
-    (7,2),
-    (8,8)
-]
+cells = [(1, 1), (2, 7), (5, 5), (7, 2), (8, 8)]
 
-# ============================================================
-# PERIODIC LAPLACIAN
-# ============================================================
 
 def laplacian(Z):
+    return (np.roll(Z, 1, 0) + np.roll(Z, -1, 0)
+            + np.roll(Z, 1, 1) + np.roll(Z, -1, 1) - 4 * Z)
 
-    return (
-        np.roll(Z, 1, axis=0)
-        + np.roll(Z, -1, axis=0)
-        + np.roll(Z, 1, axis=1)
-        + np.roll(Z, -1, axis=1)
-        - 4 * Z
-    )
-
-# ============================================================
-# NETWORK SIMULATION
-# ============================================================
 
 def simulate_network(A0):
-
-    # --------------------------------------------------------
-    # ATP-dependent stochasticity
-    # --------------------------------------------------------
-
+    """Network model identical to fig_3 (heterogeneous FHN units, activity-dependent
+    diffusive coupling suppressed by ATP)."""
     sigma_eff = sigma * (1 + 4 * A0)
-
-    # --------------------------------------------------------
-    # parameters
-    # --------------------------------------------------------
-
-    a = 1.0
-    b = 0.8
-
+    a, b = 1.0, 0.8
     gamma = (np.random.uniform(0.05, 0.34, (Nx, Ny))
-    * (1 + 2.0*A0*np.random.randn(Nx, Ny)))
-   
-    I0 = 0.05 + (1/A0**0.5) * np.random.uniform(0.01, 0.15, (Nx, Ny))
-
-    # --------------------------------------------------------
-    # heterogeneous recovery
-    # --------------------------------------------------------
-
-    tau_h_eff = (10.0 / ((1 + 0.8 * A0) * np.random.uniform(0.5, 1.1, (Nx, Ny))))
-
-    # --------------------------------------------------------
-    # coupling
-    # --------------------------------------------------------
-
+             * (1 + 2.0 * A0 * np.random.randn(Nx, Ny)))
+    I0 = 0.05 + (1 / A0 ** 0.5) * np.random.uniform(0.01, 0.15, (Nx, Ny))
+    tau_h_eff = 10.0 / ((1 + 0.8 * A0) * np.random.uniform(0.5, 1.1, (Nx, Ny)))
     D0 = np.random.uniform(0.05, 0.5, (Nx, Ny))
-
     kappa = np.random.uniform(1, 4, (Nx, Ny))
-
-    # ATP suppresses propagation
-    D_eff = D0 / (1 + (kappa * A0)**4)
-
-    # --------------------------------------------------------
-    # thresholded propagation
-    # --------------------------------------------------------
-
-    theta = 0.5 + 0.7*A0
+    D_eff = D0 / (1 + (kappa * A0) ** 4)
+    theta = 0.5 + 0.7 * A0
     sharpness = 8.0
-
-    # --------------------------------------------------------
-    # states
-    # --------------------------------------------------------
 
     C = np.random.uniform(-0.1, 0.3, (Nx, Ny))
     h = np.random.uniform(0.4, 1.2, (Nx, Ny))
-
-    # --------------------------------------------------------
-    # storage
-    # --------------------------------------------------------
-
     activity = np.zeros((steps, N))
-
-    # ========================================================
-    # simulation loop
-    # ========================================================
-
     for step in range(steps):
-
-        # ----------------------------------------------------
-        # stochastic forcing
-        # ----------------------------------------------------
-
-        noise = (sigma_eff * 3 * np.random.randn(Nx, Ny))
-
-        # ----------------------------------------------------
-        # thresholded activation field
-        # ----------------------------------------------------
-
+        noise = sigma_eff * 3 * np.random.randn(Nx, Ny)
         C_active = 0.5 * (1 + np.tanh(sharpness * (C - theta)))
-
-        # ----------------------------------------------------
-        # nonlinear propagation
-        # ----------------------------------------------------
-
         diff = D_eff * laplacian(C_active)
-
-        # ----------------------------------------------------
-        # fast subsystem
-        # ----------------------------------------------------
-
-        dC = (C - (C**3)/3 - h + I0 + gamma * A0 + diff + noise)
-
-        # ----------------------------------------------------
-        # slow subsystem
-        # ----------------------------------------------------
-
-        dh = (C + a - b*h) / tau_h_eff
-
-        # ----------------------------------------------------
-        # update
-        # ----------------------------------------------------
-
-        C += dt * dC
-        h += dt * dh
-
-        # ----------------------------------------------------
-        # stabilization
-        # ----------------------------------------------------
-
-        C = np.clip(C, -4, 4)
-
-        # ----------------------------------------------------
-        # store
-        # ----------------------------------------------------
-
+        dC = C - (C ** 3) / 3 - h + I0 + gamma * A0 + diff + noise
+        dh = (C + a - b * h) / tau_h_eff
+        C = np.clip(C + dt * dC, -4, 4)
+        h = h + dt * dh
         activity[step] = C.flatten()
-
     return activity
 
+
 # ============================================================
-# RUN BOTH CONDITIONS
+# RUN
 # ============================================================
+all_activity = [(label, A0, simulate_network(A0)) for label, A0 in ATP_conditions]
 
-all_activity = []
-
-for label, A0 in ATP_conditions:
-
-    activity = simulate_network(A0)
-
-    all_activity.append( (label, A0, activity) )
+# shared colour scale across all conditions
+allC = np.concatenate([a.ravel() for _, _, a in all_activity])
+vmin, vmax = np.percentile(allC, 1), np.percentile(allC, 99)
 
 # ============================================================
 # FIGURE
 # ============================================================
+apply_style()
+ncol = len(all_activity)
+fig, axes = plt.subplots(2, ncol, figsize=(4.4 * ncol, 7))
 
-fig, axes = plt.subplots(2, 2, figsize=(14, 9))
-
-# ============================================================
-# PANELS
-# ============================================================
-
+ims = []
 for col, (label, A0, activity) in enumerate(all_activity):
-
-    # ========================================================
-    # imaging map
-    # ========================================================
-
     ax_map = axes[0, col]
+    im = ax_map.imshow(activity.T, aspect="auto", cmap="inferno", origin="lower",
+                       extent=[0, T * SEC_PER_AU, 0, N], vmin=vmin, vmax=vmax)
+    ims.append(im)
+    ax_map.set_title(label)
+    ax_map.set_xlabel("Time (s)")
+    if col == 0:
+        ax_map.set_ylabel("Cell index")
 
-    im = ax_map.imshow(
-
-        activity.T,
-
-        aspect='auto',
-        cmap='inferno',
-        origin='lower',
-        extent=[0, T, 0, N]
-    )
-
-    ax_map.set_title(f"{label} — Ca$^{{2+}}$ activity")
-
-    ax_map.set_xlabel("Time (a.u.)")
-
-    ax_map.set_ylabel("Cell index")
-
-    plt.colorbar(im, ax=ax_map)
-
-    # ========================================================
-    # representative traces
-    # ========================================================
-
-    ax_trace = axes[1, col]
-
+    ax_tr = axes[1, col]
     for k, (i, j) in enumerate(cells):
+        ax_tr.plot(t * SEC_PER_AU, activity[:, i * Ny + j] + 4 * k,
+                   lw=0.6, color="black")
+    ax_tr.set_xlabel("Time (s)")
+    ax_tr.set_yticks([])
+    if col == 0:
+        ax_tr.set_ylabel("C (Ca$^{2+}$)  (offset)")
 
-        tr = activity[:, i * Ny + j]
+fig.tight_layout()
 
-        ax_trace.plot(t, tr + 4*k, linewidth=1.0)
+# single shared colorbar to the right of the raster row (keeps the 2x3 grid aligned)
+pos = axes[0, ncol - 1].get_position()
+cax = fig.add_axes([pos.x1 + 0.012, pos.y0, 0.012, pos.height])
+cbar = fig.colorbar(ims[-1], cax=cax)
+cbar.set_label(r"Ca$^{2+}$ activity $C$")
 
-    ax_trace.set_title(f"{label} — Representative traces")
-    ax_trace.set_xlabel("Time (a.u.)")
-    ax_trace.set_ylabel("C (Ca$^{2+}$)")
-    ax_trace.grid(True, alpha=0.3)
-    ax_trace.set_yticks([])
-
-# ============================================================
-# FINAL LAYOUT
-# ============================================================
-
-plt.tight_layout()
-plt.show()
+save_fig(fig, "Figure_2")
+print(f"Saved Figure_2.pdf / .png  (shared colour scale vmin={vmin:.2f}, vmax={vmax:.2f})")
+plt.close(fig)
