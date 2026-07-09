@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
 
-from plotstyle import apply_style, save_fig
+from plotstyle import apply_style, save_fig, panel_label
 
 # ============================================================
 # OPERATORS
@@ -290,6 +290,7 @@ for size, data in analysis.items():
            label='_nolegend_')
     ax[0].axhline(0,color='k',linestyle=':')
     ax[0].set_title("Largest Lyapunov Exponent")
+    panel_label(ax[0], "A")
     ax[0].set_xlabel("Alpha")
     ax[0].set_ylabel("Lambda")
     ax[0].legend(fontsize=8)
@@ -305,6 +306,7 @@ for size, data in analysis.items():
            label='_nolegend_')
 
     ax[2].set_title(r"$R_{SC}=\langle S_C\rangle/\sigma(S_C)$")
+    panel_label(ax[2], "C")
     ax[2].set_xlabel("Alpha")
     ax[2].set_ylabel("RSC")
     ax[2].legend(fontsize=8)
@@ -318,6 +320,7 @@ for size, data in analysis.items():
     ax[1].plot(alphas,delta_lambda,label=str(size))
     ax[1].axhline(0,color='k',linestyle=':')
     ax[1].set_title(r"$\Delta \lambda = \lambda_D-\lambda_H$")
+    panel_label(ax[1], "B")
     ax[1].set_xlabel("Alpha")
     ax[1].set_ylabel("Delta Lambda")
     ax[1].legend(fontsize=8)

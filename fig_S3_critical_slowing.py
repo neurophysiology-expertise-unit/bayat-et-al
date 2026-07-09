@@ -27,7 +27,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numba import njit, prange
 
-from plotstyle import apply_style, clean_spines, save_fig
+from plotstyle import apply_style, clean_spines, save_fig, panel_label
 
 PROC_DIR = "processed_data"
 CACHE = os.path.join(PROC_DIR, "figS3_slowing.npz")
@@ -271,6 +271,15 @@ def compute(n_seeds=N_SEEDS_DEFAULT, T=T_DEFAULT, grid=GRID_DEFAULT, n_samp=N_SA
         ar1, tau = indicators_ensemble(series, sample_dt)
         chi_mean, _ = ci95(chi)
         data[f"{cond}_chi_mean"] = chi_mean
+
+        # per-seed peak-over-baseline tau_ac enhancement (baseline = high-alpha tail)
+        base = tau[:, -5:].mean(axis=1)
+        enh = tau.max(axis=1) / base
+        data[f"{cond}_tau_enh_mean"] = enh.mean()
+        data[f"{cond}_tau_enh_sd"] = enh.std(ddof=1)
+        data[f"{cond}_tau_enh_n"] = len(enh)
+        print(f"    {cond} tau_ac peak/baseline enhancement: "
+              f"{enh.mean():.2f} +/- {enh.std(ddof=1):.2f} (n={len(enh)})")
         for obs, stack in (("ar1", ar1), ("tau", tau)):
             mean, half = ci95(stack)
             data[f"{cond}_{obs}_mean"] = mean
@@ -295,8 +304,8 @@ def load():
 # PLOT
 # ============================================================
 OBS_TITLE = {
-    "ar1": r"(A) Lag-1 autocorrelation of $\langle C\rangle$",
-    "tau": r"(B) Autocorrelation time $\tau_{ac}$",
+    "ar1": r"Lag-1 autocorrelation of $\langle C\rangle$",
+    "tau": r"Autocorrelation time $\tau_{ac}$",
 }
 OBS_YLABEL = {"ar1": rf"AR(1) coeff. ($\Delta t\approx{AR1_LAG_TIME:g}$)",
               "tau": r"$\tau_{ac}$ (model time)"}
@@ -327,6 +336,7 @@ def plot(data, save_stem="Figure_S3"):
         ax.axvline(aH, color="0.6", linewidth=1.0, linestyle=":")
         ax.set_xlim(alpha.min(), alpha.max())
         ax.set_title(OBS_TITLE[obs])
+        panel_label(ax, "AB"[c])
         ax.set_xlabel(r"ATP level $\alpha$")
         ax.set_ylabel(OBS_YLABEL[obs])
         clean_spines(ax)
@@ -349,7 +359,8 @@ def plot(data, save_stem="Figure_S3"):
              linewidth=2, label=COND_NAME["D"])
     axc.axvline(0.0, color="0.6", linewidth=1.0, linestyle=":")
     axc.set_xlim((alpha - aH).min(), (alpha - aH).max())
-    axc.set_title(r"(C) $\tau_{ac}/$baseline, transitions aligned")
+    axc.set_title(r"$\tau_{ac}/$baseline, transitions aligned")
+    panel_label(axc, "C")
     axc.set_xlabel(r"$\alpha-\alpha_{\mathrm{transition}}$")
     axc.set_ylabel(r"$\tau_{ac}/\tau_{ac}^{\mathrm{base}}$")
     clean_spines(axc)

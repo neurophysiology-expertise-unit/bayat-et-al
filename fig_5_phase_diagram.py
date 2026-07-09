@@ -20,7 +20,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numba import njit, prange
 
-from plotstyle import apply_style, save_fig
+from plotstyle import apply_style, save_fig, panel_label
 
 PROC_DIR = "processed_data"
 CACHE = os.path.join(PROC_DIR, "fig5_phase.npz")
@@ -175,10 +175,11 @@ def plot(data, save_stem="Figure_5"):
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2), constrained_layout=True)
     im = None
-    for ax, grid, title in ((axes[0], H, r"(A) Healthy"), (axes[1], D, r"(B) Disease")):
+    for ax, grid, letter, name in ((axes[0], H, "A", "Healthy"), (axes[1], D, "B", "Disease")):
         im = ax.imshow(grid, origin="lower", aspect="auto", extent=extent,
                        cmap="magma", vmin=0, vmax=vmax, interpolation="bilinear")
-        ax.set_title(title + r"  —  susceptibility $\chi$")
+        ax.set_title(name + r"  —  susceptibility $\chi$")
+        panel_label(ax, letter)
         ax.set_xlabel(r"ATP level $\alpha$")
         ax.set_ylabel(r"Noise amplitude $\sigma$")
         ax.tick_params(direction="out", length=4, width=1.0)

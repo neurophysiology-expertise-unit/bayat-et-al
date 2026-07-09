@@ -18,7 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
 
-from plotstyle import apply_style, clean_spines, save_fig
+from plotstyle import apply_style, clean_spines, save_fig, panel_label
 
 # ============================================================
 # GRID / TIME
@@ -32,7 +32,7 @@ STEPS = int(T / dt)
 SUB = 20                     # subsample stride for storage / display
 sigma = 0.4
 
-ATP = [("Low ATP", 0.10), ("Intermediate ATP", 0.40), ("High ATP", 0.90)]  # mid=0.40 matches Fig 3 snapshot (0.395), past the quiescent dip at 0.27
+ATP = [("Low ATP", 0.10), ("Intermediate ATP", 0.60), ("High ATP", 0.90)]  # mid=0.60: activity present (~0.08) but coordination collapsed (~0.003) => active-but-desynchronized
 DISP_SEED = 290
 METRIC_SEEDS = [290, 11, 29, 28, 19, 55]
 cells = [(1, 1), (2, 7), (5, 5), (7, 2), (8, 8)]
@@ -144,7 +144,8 @@ def plot(disp, corr, frac, save_stem="Figure_2"):
         ax_tr = fig.add_subplot(gs_tr[ci, 0])
         for k, (i, j) in enumerate(cells):
             ax_tr.plot(t_sec, disp[ci][:, i * Ny + j] + 4 * k, lw=0.6, color="black")
-        ax_tr.set_title(label, fontsize=10, loc="left")
+        ax_tr.set_title(label, fontsize=10, loc="center")
+        panel_label(ax_tr, "ABC"[ci], dx=-0.04)
         ax_tr.set_xlim(0, T * SEC_PER_AU)
         ax_tr.set_yticks([])
         ax_tr.spines["left"].set_visible(False)
@@ -161,13 +162,20 @@ def plot(disp, corr, frac, save_stem="Figure_2"):
         im = ax_hm.imshow(disp[ci].T, aspect="auto", cmap="inferno", origin="lower",
                           extent=[0, T * SEC_PER_AU, 0, N], vmin=vmin, vmax=vmax)
         ax_hm.set_ylabel("Cell index")
+        panel_label(ax_hm, "DEF"[ci])
         if ci < 2:
             ax_hm.tick_params(labelbottom=False)
         else:
             ax_hm.set_xlabel("Time (s)")
 
+    # short, narrow colorbar centered vertically, nudged close to the heatmaps (D-F)
+    hm_pos = im.axes.get_position()
+    p = cax.get_position()
+    ch = p.height * 0.42
+    cax.set_position([hm_pos.x1 + 0.012, p.y0 + (p.height - ch) / 2.0, p.width * 0.8, ch])
     cbar = fig.colorbar(im, cax=cax)
-    cbar.set_label(r"Ca$^{2+}$ activity $C$")
+    cbar.set_label(r"Ca$^{2+}$ activity $C$", fontsize=8)
+    cbar.ax.tick_params(labelsize=7)
 
     # metrics (right)
     atp = np.array([A0 for _, A0 in ATP])
@@ -183,6 +191,7 @@ def plot(disp, corr, frac, save_stem="Figure_2"):
         ax.set_xticks(atp)
         ax.set_ylabel(ylab)
         ax.set_title(title, fontsize=10)
+        panel_label(ax, "GH"[row])
         clean_spines(ax)
         if row == 1:
             ax.set_xlabel(r"ATP level $\alpha$")

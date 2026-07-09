@@ -48,7 +48,7 @@ PK_DIST_AU = 2.0          # minimum separation between peaks (model units)
 # ============================================================
 sigma = 0.4
 
-ATP_levels = [0.19, 0.27, 0.9]
+ATP_levels = [0.19, 0.40, 0.9]   # low / intermediate / high (single cell fires from ~0.19; 0.10 is subthreshold)
 COND_LABELS = ["Low ATP", "Intermediate ATP", "High ATP"]
 COND_SUBTITLE = ["noise-driven excitable", "oscillation onset", "irregular high-frequency"]
 N_SEEDS = 10

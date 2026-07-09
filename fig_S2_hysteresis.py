@@ -26,7 +26,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numba import njit, prange
 
-from plotstyle import apply_style, clean_spines, save_fig
+from plotstyle import apply_style, clean_spines, save_fig, panel_label
 
 PROC_DIR = "processed_data"
 CACHE = os.path.join(PROC_DIR, "figS2_hysteresis.npz")
@@ -285,6 +285,7 @@ def plot(data, save_stem="Figure_S2"):
                                 color=color, alpha=0.15, linewidth=0)
             ax.set_xlim(alpha.min(), alpha.max())
             clean_spines(ax)
+            panel_label(ax, "ABCD"[r * len(conditions) + c])
             if r == 0:
                 ax.set_title(f"{COND_NAME[cond]}")
             if r == len(observables) - 1:

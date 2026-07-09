@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from numba import njit, prange
 from scipy.signal import welch
 
-from plotstyle import apply_style, clean_spines, save_fig
+from plotstyle import apply_style, clean_spines, save_fig, panel_label
 
 PROC_DIR = "processed_data"
 CACHE = os.path.join(PROC_DIR, "figS4_spectrum.npz")
@@ -172,6 +172,17 @@ def spectral_centroid(freqs, psd):
     return float((f * p).sum() / tot)
 
 
+def per_seed_centroids(series, sample_dt):
+    """Spectral centroid of each seed's PSD (for mean +/- SD across seeds)."""
+    fs = 1.0 / sample_dt
+    nper = min(1024, series.shape[1])
+    cents = np.zeros(series.shape[0])
+    for i, x in enumerate(series):
+        f, p = welch(x - x.mean(), fs=fs, nperseg=nper, detrend="constant")
+        cents[i] = spectral_centroid(f, p)
+    return cents
+
+
 # ============================================================
 # COMPUTE
 # ============================================================
@@ -192,6 +203,7 @@ def compute(n_seeds=N_SEEDS_DEFAULT, grid=GRID_DEFAULT, n_rec=N_REC,
             "alpha_low": ALPHA_LOW, "alpha_high": ALPHA_HIGH}
     rows = []
     for cond, disease in (("H", False), ("D", True)):
+        cents = {}
         for lvl, al in levels.items():
             print(f"  {cond} alpha={al} ({lvl})...")
             series = record_ensemble(seeds, disease, al, steps_trans, n_rec, stride, nx, ny, n)
@@ -199,9 +211,20 @@ def compute(n_seeds=N_SEEDS_DEFAULT, grid=GRID_DEFAULT, n_rec=N_REC,
             data[f"{cond}_{lvl}_freq"] = f
             data[f"{cond}_{lvl}_psd"] = psd
             data[f"{cond}_{lvl}_fcent"] = spectral_centroid(f, psd)
+            c = per_seed_centroids(series, sample_dt)
+            cents[lvl] = c
+            data[f"{cond}_{lvl}_fcent_mean"] = c.mean()
+            data[f"{cond}_{lvl}_fcent_sd"] = c.std(ddof=1)
             for fi, pi in zip(f, psd):
                 rows.append({"condition": cond, "level": lvl, "alpha": al,
                              "freq": fi, "psd": pi})
+        ratio = cents["high"] / cents["low"]
+        data[f"{cond}_fcent_ratio_mean"] = ratio.mean()
+        data[f"{cond}_fcent_ratio_sd"] = ratio.std(ddof=1)
+        data[f"{cond}_fcent_ratio_n"] = len(ratio)
+        print(f"    {cond} centroid low={cents['low'].mean():.3f}+/-{cents['low'].std(ddof=1):.3f}"
+              f", high={cents['high'].mean():.3f}+/-{cents['high'].std(ddof=1):.3f}"
+              f", high/low={ratio.mean():.2f}+/-{ratio.std(ddof=1):.2f} (n={len(ratio)})")
 
     np.savez(CACHE, **data)
     pd.DataFrame(rows).to_csv(CURVES_CSV, index=False)
@@ -242,6 +265,7 @@ def plot(data, save_stem="Figure_S4"):
                       label=rf"$\alpha={al:g}$ ($\bar f={fc:.3f}$)")
             ax.axvline(fc, color=color, linewidth=0.9, linestyle=":", alpha=0.7)
         ax.set_title(COND_NAME[cond])
+        panel_label(ax, "AB"[c])
         ax.set_xlabel(r"frequency (cycles / model time)")
         if c == 0:
             ax.set_ylabel(r"PSD of $\langle C\rangle$")

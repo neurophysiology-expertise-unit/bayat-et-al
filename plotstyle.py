@@ -47,6 +47,16 @@ def clean_spines(ax):
     ax.tick_params(direction="out", length=4, width=1.0)
 
 
+def panel_label(ax, letter, dx=-0.08, dy=1.02, fontsize=13):
+    """Bold panel identifier at the top-left corner (outside the axes), matching Fig 1.
+
+    Use this instead of embedding '(A)' in the panel title, so every figure carries a
+    consistent, professional panel-letter scheme (one distinct letter per panel).
+    """
+    ax.text(dx, dy, letter, transform=ax.transAxes, fontsize=fontsize,
+            fontweight="bold", va="bottom", ha="right")
+
+
 def save_fig(fig, stem, formats=("pdf", "png")):
     """Save a figure to <stem>.<ext> for each requested format."""
     for ext in formats:

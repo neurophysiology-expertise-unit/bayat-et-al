@@ -18,7 +18,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numba import njit, prange
 
-from plotstyle import apply_style, clean_spines, save_fig
+from plotstyle import apply_style, clean_spines, save_fig, panel_label
 
 PROC_DIR = "processed_data"
 CACHE = os.path.join(PROC_DIR, "fig3_ci.npz")
@@ -427,11 +427,12 @@ def load():
 # PLOT  (loads from cache)
 # ============================================================
 TITLES = {
-    "Sc": r"(A) Spatial heterogeneity $S_C$",
-    "chi": r"(B) Extreme-value fluctuation $\chi_{ext}$",
-    "Rsync": r"(C) Synchrony order parameter $R$",
-    "corr": r"(D) Spatial coherence length $\xi$",
+    "Sc": r"Spatial heterogeneity $S_C$",
+    "chi": r"Extreme-value fluctuation $\chi_{ext}$",
+    "Rsync": r"Synchrony order parameter $R$",
+    "corr": r"Spatial coherence length $\xi$",
 }
+CURVE_LETTER = {"Sc": "A", "chi": "B", "Rsync": "C", "corr": "D"}
 COND_STYLE = {"H": ("Healthy", "#0072B2"), "D": ("Disease", "#D55E00")}   # colorblind-safe
 P_THRESH = 0.05
 
@@ -460,6 +461,7 @@ def plot(data, save_stem="Figure_3_ci"):
             ax.fill_between(alpha, smooth(mean - half, w), smooth(mean + half, w),
                             color=color, alpha=0.18, linewidth=0)
         ax.set_title(TITLES[obs])
+        panel_label(ax, CURVE_LETTER[obs])
         ax.set_xlim(alpha.min(), alpha.max())
         ax.tick_params(labelbottom=False)
         clean_spines(ax)
@@ -487,20 +489,21 @@ def plot(data, save_stem="Figure_3_ci"):
             ax.set_ylabel(r"$p$ (H vs D)", fontsize=8)
         clean_spines(ax)
 
-    # ---- rows 2-3: representative snapshots (3 ATP levels) ----
-    row_titles = {"H": ("E", "Healthy"), "D": ("F", "Disease")}
+    # ---- rows 2-3: representative snapshots (each panel its own letter, E-J) ----
+    snap_letters = {"H": ["E", "F", "G"], "D": ["H", "I", "J"]}
+    snap_name = {"H": "Healthy", "D": "Disease"}
     keys = ["low", "mid", "high"]
     labels = ["Low ATP", "Mid ATP", "High ATP"]
     im = None
     snap_axes = []
     for r, cond in zip((2, 3), ("H", "D")):
-        letter, name = row_titles[cond]
         for i, k in enumerate(keys):
             ax = fig.add_subplot(gs[r, 4 * i:4 * i + 4])
             snap_axes.append(ax)
             im = ax.imshow(data[f"{cond}_snap_{k}"], cmap="inferno",
                            origin="lower", interpolation="nearest")
-            ax.set_title(f"({letter}{i+1}) {name} — {labels[i]}", fontsize=9)
+            ax.set_title(f"{snap_name[cond]} — {labels[i]}", fontsize=9)
+            panel_label(ax, snap_letters[cond][i], dx=0.0, dy=1.02)
             ax.set_xticks([]); ax.set_yticks([])
             for s in ax.spines.values():
                 s.set_visible(False)
