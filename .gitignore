@@ -1,6 +1,3 @@
-__pycache__/
-*.pyc
-.ipynb_checkpoints/
-*.aux
-*.log
-.DS_Store
+# generated figures (regenerate from code + processed_data)
+*.pdf
+*.png
