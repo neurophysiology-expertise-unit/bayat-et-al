@@ -309,7 +309,11 @@ def plot(data, save_stem="Figure_S3"):
     alpha = np.asarray(data["alpha"])
     observables = ["ar1", "tau"]
 
-    fig, axes = plt.subplots(1, len(observables), figsize=(9, 3.6), squeeze=False)
+    fig, axes = plt.subplots(1, 3, figsize=(13, 3.6), squeeze=False)
+
+    # transition loci = each condition's own chi peak
+    aH = alpha[int(np.argmax(np.asarray(data["H_chi_mean"])))]
+    aD = alpha[int(np.argmax(np.asarray(data["D_chi_mean"])))]
 
     for c, obs in enumerate(observables):
         ax = axes[0][c]
@@ -320,9 +324,7 @@ def plot(data, save_stem="Figure_S3"):
             ax.plot(alpha, mean, "-", color=color, linewidth=2, label=COND_NAME[cond])
             ax.fill_between(alpha, mean - half, mean + half, color=color,
                             alpha=0.15, linewidth=0)
-        # mark the healthy fluctuation (chi) peak -- the transition locus
-        chi_peak = alpha[int(np.argmax(np.asarray(data["H_chi_mean"])))]
-        ax.axvline(chi_peak, color="0.6", linewidth=1.0, linestyle=":")
+        ax.axvline(aH, color="0.6", linewidth=1.0, linestyle=":")
         ax.set_xlim(alpha.min(), alpha.max())
         ax.set_title(OBS_TITLE[obs])
         ax.set_xlabel(r"ATP level $\alpha$")
@@ -330,9 +332,27 @@ def plot(data, save_stem="Figure_S3"):
         clean_spines(ax)
         if c == 0:
             ax.legend(loc="upper right")
-            ax.annotate(r"$\chi$ peak", xy=(chi_peak, ax.get_ylim()[1]),
+            ax.annotate(r"$\chi$ peak", xy=(aH, ax.get_ylim()[1]),
                         xytext=(4, -4), textcoords="offset points",
                         fontsize=7, color="0.4", va="top")
+
+    # (C) baseline-normalised tau_ac with transitions aligned: isolates the SHAPE of
+    # the slowing signature from the imposed recovery timescale tau_h (which disease
+    # triples). Near-collapse => the slowing is comparable; the disease difference in
+    # absolute tau_ac is inherited from tau_h, not an independent effect.
+    axc = axes[0][2]
+    tauH = np.asarray(data["H_tau_mean"]); tauD = np.asarray(data["D_tau_mean"])
+    baseH = tauH[-5:].mean(); baseD = tauD[-5:].mean()
+    axc.plot(alpha - aH, smooth(tauH / baseH, 3), "-", color=COND_COLOR["H"],
+             linewidth=2, label=COND_NAME["H"])
+    axc.plot(alpha - aD, smooth(tauD / baseD, 3), "-", color=COND_COLOR["D"],
+             linewidth=2, label=COND_NAME["D"])
+    axc.axvline(0.0, color="0.6", linewidth=1.0, linestyle=":")
+    axc.set_xlim((alpha - aH).min(), (alpha - aH).max())
+    axc.set_title(r"(C) $\tau_{ac}/$baseline, transitions aligned")
+    axc.set_xlabel(r"$\alpha-\alpha_{\mathrm{transition}}$")
+    axc.set_ylabel(r"$\tau_{ac}/\tau_{ac}^{\mathrm{base}}$")
+    clean_spines(axc)
 
     fig.suptitle("Critical slowing down across the ATP transition",
                  y=1.02, fontweight="bold")
