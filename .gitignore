@@ -1,3 +1,10 @@
 # generated figures (regenerate from code + processed_data)
 *.pdf
 *.png
+
+# python bytecode cache
+__pycache__/
+*.py[cod]
+
+# run logs
+*.log
