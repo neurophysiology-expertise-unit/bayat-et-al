@@ -1,0 +1,68 @@
+"""
+core/provenance.py — make every result file reconstructible.
+
+new_plan.md, invariant #2: "Every result file carries its config. Each .npz written
+must embed the full parameter dict and the git commit hash used to produce it. A result
+whose provenance cannot be reconstructed is deleted, not reused."
+
+Phase 1 onward writes arrays to results/*.npz; those calls should go through
+`save_result` so the commit hash and the parameter dict travel with the data. This is
+cheap insurance against the exact situation that made the CSF submission bundle
+impossible to rebuild later (a figure whose inputs could not be recovered).
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+
+import numpy as np
+
+
+def git_commit(repo_root=None):
+    """Full commit hash of the working tree, with a '-dirty' suffix if there are
+    uncommitted changes. Returns 'unknown' rather than raising if git is unavailable —
+    a missing hash must not silently look like a clean one, so it is made explicit."""
+    root = Path(repo_root) if repo_root else Path(__file__).resolve().parent.parent
+    try:
+        h = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"],
+                                    stderr=subprocess.DEVNULL).decode().strip()
+        dirty = subprocess.call(["git", "-C", str(root), "diff", "--quiet"],
+                                stderr=subprocess.DEVNULL) != 0
+        staged = subprocess.call(["git", "-C", str(root), "diff", "--cached", "--quiet"],
+                                 stderr=subprocess.DEVNULL) != 0
+        return h + ("-dirty" if (dirty or staged) else "")
+    except Exception:
+        return "unknown"
+
+
+def save_result(path, params, **arrays):
+    """np.savez_compressed with the parameter dict and git hash embedded.
+
+    `params` is stored as a JSON string under the key '__params__' and the commit under
+    '__git_commit__', so `np.load(path)['__params__']` round-trips to the exact config.
+    A result written any other way is, per the invariant, not to be reused.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "__params__": json.dumps(params, sort_keys=True, default=str),
+        "__git_commit__": git_commit(),
+    }
+    np.savez_compressed(path, **arrays, **meta)
+    return path
+
+
+def load_result(path):
+    """Return (arrays_dict, params_dict, git_commit). Raises if the provenance keys are
+    missing — an unprovenanced result is a bug to surface, not to paper over."""
+    z = np.load(path, allow_pickle=False)
+    keys = set(z.files)
+    if "__params__" not in keys or "__git_commit__" not in keys:
+        raise ValueError(f"{path} has no embedded provenance; per invariant #2 it "
+                         f"cannot be trusted — regenerate it with save_result().")
+    params = json.loads(str(z["__params__"]))
+    commit = str(z["__git_commit__"])
+    arrays = {k: z[k] for k in z.files if not k.startswith("__")}
+    return arrays, params, commit
