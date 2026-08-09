@@ -92,10 +92,10 @@ def chi_one(alpha, sigma_base, disease, seed, steps):
         C_active = 0.5 * (1.0 + np.tanh(eta * (C - theta)))
         diff = Deff * laplacian(C_active)
 
-        dC = C - (C ** 3) / 3.0 - h + I0 + gamma * alpha + diff + noise
+        dC = C - (C ** 3) / 3.0 - h + I0 + gamma * alpha + diff
         dh = (C + a - b * h) / tau_h
 
-        C = C + dt * dC
+        C = C + dt * dC + dt ** 0.5 * noise
         h = h + dt * dh
         C = np.minimum(np.maximum(C, -4.0), 4.0)
 

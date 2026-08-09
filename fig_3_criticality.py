@@ -117,10 +117,10 @@ def run_model(disease=False, seed=0):
             C_active = Phi(C, theta)
             diff = Deff * laplacian(C_active)
 
-            dC = (C - (C**3)/3 - h + I0 + gamma * alpha + diff + noise)
+            dC = (C - (C**3)/3 - h + I0 + gamma * alpha + diff)
             dh = (C + a - b*h) / tau_h
 
-            C += dt * dC
+            C += dt * dC + dt ** 0.5 * noise
             h += dt * dh
 
             C = np.clip(C, -4, 4)

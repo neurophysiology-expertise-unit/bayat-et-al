@@ -75,9 +75,9 @@ def simulate(A0, seed, n, dt, sigma):
     sigma_eff = sigma * (1.0 + A0)
     for i in range(n - 1):
         noise = sigma_eff * 3.0 * np.random.standard_normal()
-        dC = C[i] - (C[i] ** 3) / 3.0 - h[i] + I0 + gamma * A0 + noise
+        dC = C[i] - (C[i] ** 3) / 3.0 - h[i] + I0 + gamma * A0
         dh = (C[i] + a - b * h[i]) / tau_h_eff
-        C[i + 1] = min(max(C[i] + dt * dC, -4.0), 4.0)
+        C[i + 1] = min(max(C[i] + dt * dC + dt ** 0.5 * noise, -4.0), 4.0)
         h[i + 1] = h[i] + dt * dh
     return C
 

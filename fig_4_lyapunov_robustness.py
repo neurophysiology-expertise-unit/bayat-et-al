@@ -78,16 +78,16 @@ def largest_lyapunov_core(noise_all,C1, h1,
 
         noise = noise_all[t]
 
-        dC1 = (C1 - C1**3/3.0 - h1 + I0 + gamma*alpha + Deff*laplacian(Phi(C1,theta)) + noise)
+        dC1 = (C1 - C1**3/3.0 - h1 + I0 + gamma*alpha + Deff*laplacian(Phi(C1,theta)))
         dh1 = (C1 + 1.0 - 0.8*h1)/tau_h
 
-        dC2 = (C2 - C2**3/3.0 - h2 + I0 + gamma*alpha + Deff*laplacian(Phi(C2,theta)) + noise)
+        dC2 = (C2 - C2**3/3.0 - h2 + I0 + gamma*alpha + Deff*laplacian(Phi(C2,theta)))
         dh2 = (C2 + 1.0 - 0.8*h2)/tau_h
 
-        C1 += dt*dC1
+        C1 += dt*dC1 + dt ** 0.5 * noise
         h1 += dt*dh1
 
-        C2 += dt*dC2
+        C2 += dt*dC2 + dt ** 0.5 * noise
         h2 += dt*dh2
 
         if t > 0 and t % tau == 0:
@@ -198,11 +198,11 @@ def single_SC_core(Nx,Ny,alpha,gamma,I0_base,tau_base,D0,kappa,disease,seed,T,dt
         noise = noise_amp * np.random.standard_normal((Nx, Ny))
 
         dC = (C - C**3 / 3.0 - h + I0 + gamma_local * alpha
-            + Deff * laplacian(Phi(C, theta)) + noise)
+            + Deff * laplacian(Phi(C, theta)))
 
         dh = (C + a - b * h) / tau_h
 
-        C += dt * dC
+        C += dt * dC + dt ** 0.5 * noise
         h += dt * dh
 
     return np.var(C) / (np.abs(np.mean(C)) + 1e-12)

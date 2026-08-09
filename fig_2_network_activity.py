@@ -80,7 +80,7 @@ def sim_net(A0, seed, steps, nx, ny, n, sub):
         Ca = 0.5 * (1.0 + np.tanh(8.0 * (C - th)))
         diff = Deff * laplacian(Ca)
         C = np.minimum(np.maximum(
-            C + dt * (C - C ** 3 / 3.0 - h + I0 + gamma * A0 + diff + noise), -4.0), 4.0)
+            C + dt * (C - C ** 3 / 3.0 - h + I0 + gamma * A0 + diff) + dt ** 0.5 * noise, -4.0), 4.0)
         h = h + dt * (C + a - b * h) / tau
         if step % sub == 0 and si < n_sub:
             out[si] = C.reshape(n)
