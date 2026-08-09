@@ -89,3 +89,43 @@ comparable to the paper's Fig 3.)
    corrected scheme, set `sigma = 0.02332` (or import it from `core/model`), or they will be
    ~17× too noisy. **The repo's current figures/caches are still the old-scheme outputs.**
 2. Phase 0.3: audit the `1/sqrt(alpha)` I0 term (sign + the low-alpha blow-up above).
+
+## Phase 1 — T-convergence of chi (choosing the sweep length)
+
+chi is a time-variance estimator, so its finite-T bias is downward and scales with
+tau_ac/T. tau_ac peaks near the transition (Fig S3) and grows with L, so a too-short
+T suppresses large-L peaks MORE than small-L ones and can manufacture an artificial
+saturation — which under the Phase-1 decision rule would wrongly strip the criticality
+claim. So T is calibrated at L=32 BEFORE the L-comparison, and the smallest T within 5%
+of the T=2000 chi_peak is adopted. This belongs in Methods: "T was chosen such that chi
+estimates were converged to within 5%."
+
+L=32, 8 seeds, narrow grid (17 alphas), sigma=0.02332:
+
+| T    | steps  | chi_peak | alpha* |
+|------|--------|----------|--------|
+| 200  | 58823  | 32.07    | 0.165  |
+| 500  | 147058 | 33.48    | 0.188  |
+| 1000 | 294117 | 35.37    | 0.188  |
+| 2000 | 588235 | *(running)* | |
+
+**chi_peak is still climbing at T=1000 (500->1000 is +5.6%, not decelerating)** — a
+direct demonstration of the downward finite-T bias. T=2000 is genuinely required to
+apply the 5% rule; the converged T is read by the automated overnight launcher. This is
+also why launching the overnight run at T=500 or T=1000 would have been an error.
+
+**alpha\* has converged to 0.188 at L=32** (0.165 at T=200 was under-resolved; 0.188 at
+both T=500 and T=1000). Combined with the L=10 legacy check (alpha*=0.120, firm), the
+peak LOCATION is drifting UP with L: 0.120 (L=10) -> 0.188 (L=32). alpha*-drift with L is
+one of the two collective-transition signatures; whether chi_peak also grows with L is
+the Phase 1 question, decided from the L=32/64/128 run (a judgement call, not automated).
+
+## Phase 1 run configuration
+
+- Model: `core/model.py` (bit-identical to the published fig_3_criticality_ci core;
+  see PHASE0_VALIDATION.md), sigma=0.02332, correct sqrt(dt) scheme.
+- L in {32, 64, 128}, healthy; L in {32, 64} additionally with I0 held alpha-independent
+  (the cheap insurance if 1/sqrt(A) turns out to be a typo).
+- 8 seeds, narrow grid, converged T (from the table above).
+- Each (L, condition) written to its own provenance-stamped
+  `processed_data/phase1_L<L>_<cond>.npz` as it completes (crash-resilient).
