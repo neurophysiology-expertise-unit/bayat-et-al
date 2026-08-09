@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -38,6 +39,9 @@ from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,
 from core.provenance import save_result
 
 ALPHAS = np.linspace(0.01, 1.11, 21)
+# Narrowed grid for Phase 1: dense near the peak (0.12-0.18) + 3 tail points.
+# ~40% cheaper than the full 21-point grid at no accuracy cost in the peak region.
+NARROW_ALPHAS = np.concatenate([np.linspace(0.05, 0.35, 14), np.array([0.6, 0.9, 1.1])])
 
 
 @njit(fastmath=True, cache=True)
@@ -116,13 +120,9 @@ def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref,
                 sumD2 += D_ * D_
                 cntD += 1
                 Cf = C.reshape(n)
-                mm = 0.0
-                for kk in range(n):
-                    ck = Cf[kk]
-                    mm += ck
-                    csum[kk] += ck
-                    csum2[kk] += ck * ck
-                mm /= n
+                mm = np.mean(Cf)              # vectorised: the scalar kk-loop was O(n)
+                csum += Cf                    # per-step and made large-L runs take hours
+                csum2 += Cf * Cf
                 msum += mm
                 msum2 += mm * mm
 
@@ -131,10 +131,8 @@ def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref,
         meanD2 = sumD2 / cntD
         chi_out[idx] = n * (meanD2 - meanD * meanD)
         var_m = msum2 / cntD - (msum / cntD) ** 2
-        mean_var_i = 0.0
-        for kk in range(n):
-            mean_var_i += csum2[kk] / cntD - (csum[kk] / cntD) ** 2
-        mean_var_i /= n
+        var_i = csum2 / cntD - (csum / cntD) ** 2
+        mean_var_i = np.mean(var_i)
         r2 = var_m / (mean_var_i + 1e-12)
         Rsync_out[idx] = np.sqrt(r2) if r2 > 0.0 else 0.0
     return Sc_out, chi_out, Rsync_out
@@ -219,9 +217,76 @@ def run(smoke, Ls=None, n_seeds=None, T=None, out_name="phase1_finite_size"):
     print(f"wrote {p}")
 
 
+def overnight(T, n_seeds=8, Ls=(32, 64, 128)):
+    """The Phase 1 production run. Each (L, condition) is written to its OWN
+    provenance-stamped npz the instant it finishes, so a crash at hour 6 keeps
+    hours 1-5. Healthy at every L; the I0-independent variant at L=32,64 only."""
+    seeds = np.arange(11, 11 + n_seeds)
+    alphas = NARROW_ALPHAS
+    sigma = SIGMA_EM_PREDICTED
+    steps = int(T / DT)
+    outdir = Path("processed_data")
+    # (L, i0_ref, tag): cheapest first so results accumulate before the 128 run
+    jobs = []
+    for L in Ls:
+        jobs.append((L, -1.0, "healthy"))
+        if L in (32, 64):
+            jobs.append((L, 0.175, "i0fixed"))
+    jobs.sort(key=lambda j: j[0])   # ascending L
+    print(f"overnight: T={T:.0f} steps={steps}, {n_seeds} seeds, sigma={sigma:.5f}, "
+          f"{len(alphas)} alphas, jobs={[(L,t) for L,_,t in jobs]}\n", flush=True)
+    for L, i0_ref, tag in jobs:
+        t0 = time.time()
+        _, chi, R = sweep_ensemble(seeds, False, alphas, steps, L, L, L * L, sigma, i0_ref, False)
+        cm = chi.mean(0)
+        k = int(np.argmax(cm))
+        params = {"L": L, "condition": tag, "i0_ref": i0_ref, "T": T, "steps": steps,
+                  "n_seeds": n_seeds, "sigma": sigma, "alphas": alphas.tolist()}
+        p = save_result(outdir / f"phase1_L{L}_{tag}.npz", params,
+                        alphas=alphas, chi=chi, chi_mean=cm,
+                        chi_sem=chi.std(0) / np.sqrt(n_seeds), R_mean=R.mean(0))
+        print(f"[{time.strftime('%H:%M')}] L={L:4d} {tag:8s}  "
+              f"chi_peak={cm[k]:8.2f} at alpha*={alphas[k]:.3f}  "
+              f"({time.time()-t0:.0f}s)  -> {p.name}", flush=True)
+    print("\novernight complete.", flush=True)
+
+
+def t_convergence(L=32, n_seeds=8, Ts=(200.0, 500.0, 1000.0, 2000.0)):
+    """T-convergence of chi at fixed L: chi is a time-variance estimator whose finite-T
+    bias is downward and scales with tau_ac/T. Since tau_ac grows with L, too-short a T
+    suppresses large-L peaks more than small-L ones and can manufacture a fake saturation.
+    So T must be chosen where chi_peak is converged BEFORE comparing across L.
+    Adopt the smallest T within 5% of the longest-T chi_peak."""
+    seeds = np.arange(11, 11 + n_seeds)
+    alphas = NARROW_ALPHAS
+    sigma = SIGMA_EM_PREDICTED
+    print(f"T-convergence @ L={L}, {n_seeds} seeds, narrow grid ({len(alphas)} alphas), "
+          f"sigma={sigma:.5f}\n", flush=True)
+    print(f"{'T':>7} {'steps':>8} {'chi_peak':>9} {'alpha*':>7} {'sec':>6}", flush=True)
+    rows = []
+    for T in Ts:
+        steps = int(T / DT)
+        t0 = time.time()
+        _, chi, _ = sweep_ensemble(seeds, False, alphas, steps, L, L, L * L, sigma, -1.0, False)
+        cm = chi.mean(0)
+        k = int(np.argmax(cm))
+        rows.append((T, steps, cm[k], alphas[k]))
+        print(f"{T:>7.0f} {steps:>8d} {cm[k]:>9.2f} {alphas[k]:>7.3f} {time.time()-t0:>6.0f}",
+              flush=True)
+    ref = rows[-1][2]
+    chosen = None
+    for (T, steps, peak, a) in rows:
+        if abs(peak - ref) / ref <= 0.05:
+            chosen = T
+            break
+    print(f"\nreference chi_peak (T={rows[-1][0]:.0f}) = {ref:.2f}", flush=True)
+    print(f"smallest T within 5% = {chosen}", flush=True)
+    return rows, chosen
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["validate", "run"])
+    ap.add_argument("cmd", choices=["validate", "run", "tconv", "overnight"])
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--Ls", default=None, help="comma-separated lattice sizes")
     ap.add_argument("--seeds", type=int, default=None)
@@ -230,6 +295,15 @@ def main():
     args = ap.parse_args()
     if args.cmd == "validate":
         return 0 if validate() else 1
+    if args.cmd == "tconv":
+        t_convergence(L=32, n_seeds=args.seeds or 8)
+        return 0
+    if args.cmd == "overnight":
+        if args.T is None:
+            sys.exit("overnight needs --T (the converged T from tconv)")
+        Ls = tuple(int(x) for x in args.Ls.split(",")) if args.Ls else (32, 64, 128)
+        overnight(args.T, n_seeds=args.seeds or 8, Ls=Ls)
+        return 0
     Ls = [int(x) for x in args.Ls.split(",")] if args.Ls else None
     run(args.smoke, Ls=Ls, n_seeds=args.seeds, T=args.T, out_name=args.out)
     return 0
