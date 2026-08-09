@@ -146,3 +146,56 @@ def simulate_fixed_alpha(alpha, sigma, seed, steps, nx, ny, disease, burn_frac,
     active_fraction = act_sum / cnt
     spike_rate = 1000.0 * crossings / (cnt * n)
     return active_fraction, chi, spike_rate
+
+
+@njit(fastmath=True, cache=True)
+def final_state(alpha, sigma, seed, steps, nx, ny, disease, legacy_dt_noise):
+    """Return the final flattened C field after a single-alpha run.
+
+    VALIDATION PROBE ONLY. Uses the identical RNG draw order as
+    fig_3_criticality_ci.run_one_seed_core (5 heterogeneity fields incl. the
+    standard_normal in gamma_base, then C, then h, then per-step noise), so in
+    legacy mode it must reproduce that core's `lastf` bit-for-bit — that is the
+    Gate-1 test that core/model.py is a faithful extraction of the code that made
+    the published lattice figures.
+    """
+    np.random.seed(seed)
+    gamma_base = (np.random.uniform(0.05, 0.34, (nx, ny))
+                  * (1.0 + 2.0 * np.random.standard_normal((nx, ny))))
+    I0_base = np.random.uniform(0.01, 0.15, (nx, ny))
+    tau_base = np.random.uniform(0.5, 1.1, (nx, ny))
+    D0_base = np.random.uniform(0.05, 0.5, (nx, ny))
+    kappa_base = np.random.uniform(1.0, 4.0, (nx, ny))
+
+    gamma = gamma_base.copy()
+    I0 = 0.05 + (1.0 / np.sqrt(alpha)) * I0_base
+    tau_h = 10.0 / ((1.0 + 0.8 * alpha) * tau_base)
+    D0 = D0_base.copy()
+    kappa = kappa_base.copy()
+    if disease:
+        gamma = gamma * 2.0
+        tau_h = tau_h * 3.0
+        D0 = D0 * 0.5
+        kappa = kappa * 1.5
+
+    Deff = D0 / (1.0 + (kappa * alpha) ** 4)
+    theta = THETA_BASE + 0.7 * alpha
+    sigma_eff = sigma * (1.0 + 4.0 * alpha)
+    sqrt_dt = DT ** 0.5
+
+    C = np.random.uniform(-0.1, 0.3, (nx, ny))
+    h = np.random.uniform(0.4, 1.2, (nx, ny))
+
+    for t in range(steps):
+        noise = sigma_eff * NOISE_MULT * np.random.standard_normal((nx, ny))
+        C_active = 0.5 * (1.0 + np.tanh(ETA * (C - theta)))
+        diff = Deff * laplacian(C_active)
+        dC = C - (C ** 3) / 3.0 - h + I0 + gamma * alpha + diff
+        dh = (C + A_FHN - B_FHN * h) / tau_h
+        if legacy_dt_noise:
+            C = C + DT * (dC + noise)
+        else:
+            C = C + DT * dC + sqrt_dt * noise
+        h = h + DT * dh
+        C = np.minimum(np.maximum(C, -4.0), 4.0)
+    return C.ravel()
