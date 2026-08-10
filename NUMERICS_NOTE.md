@@ -129,3 +129,33 @@ the Phase 1 question, decided from the L=32/64/128 run (a judgement call, not au
 - 8 seeds, narrow grid, converged T (from the table above).
 - Each (L, condition) written to its own provenance-stamped
   `processed_data/phase1_L<L>_<cond>.npz` as it completes (crash-resilient).
+
+## Phase 1 — observable and estimator constraints (Methods-ready draft)
+
+**The Fig-3B statistic loses discrimination at physical lattice sizes.** The susceptibility
+plotted in the submitted Fig. 3B is χ_ext = N·Var_t(max_i C_i − min_i C_i), a *range*
+statistic. Its finite-size behaviour is governed by extreme-value statistics rather than
+by a thermodynamic susceptibility: as the lattice grows, some cell is almost always near the
+maximum and some near rest, so the instantaneous range ΔC(t) self-averages and its
+α-dependence washes out. Empirically the peak-to-tail ratio of χ_ext falls from 3.85 (10×10)
+to 1.46 (64×64) with disjoint bootstrap CIs, while the peak *height* does not fall — the
+contrast collapses because the tail rises. Any susceptibility claim must therefore be made
+on an intensive quantity, χ_true = N·Var_t(C̄), not on χ_ext.
+
+**Sweep length T was set by a convergence rule but χ is a finite-T underestimate.** T=200 was
+adopted as the smallest T within 5% of the T=2000 χ_peak. However χ_peak was still rising at
++5.6% per doubling at T=1000, and the T=2000 reference was itself not converged. We therefore
+treat all χ values as finite-T underestimates and make finite-size comparisons only at fixed
+T. The T-scan of χ_peak was non-monotonic (32.1, 33.5, 35.4, 33.1 at T=200/500/1000/2000);
+this is expected because χ_peak = max_α χ(α) carries an upward argmax bias that grows with
+estimator noise and works against the downward finite-T bias, so χ_peak must be reported with
+a confidence interval, not as a point estimate.
+
+**Peak-fitting was rejected in favour of argmax + bootstrap.** Parabola-in-log-χ and Lorentzian
+fits to the peak region produced CIs 10–15× narrower than the argmax CIs on identical data,
+with fitted amplitude systematically ≈25% below and fitted α₀ ≈+0.04 above the argmax at both
+L — the signature of a symmetric functional form pulled by an asymmetric right tail rather than
+of genuine variance reduction. A form-sensitivity check confirmed this: at L=32 the fitted α₀
+was 0.186 (parabola) / 0.191 (Lorentzian) / 0.131 (log-normal), a spread of 0.060 against the
+parabola's own bootstrap CI of 0.022. All finite-size statistics are therefore reported as
+argmax-based with inside-resample bootstrap CIs.
