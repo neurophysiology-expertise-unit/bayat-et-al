@@ -1,6 +1,9 @@
 """Phase 2 collapse test, both observables x both controls x both alpha_ref.
-Coordination = mean pairwise correlation rho = (N*R^2 - 1)/(N-1), derived from the
-saved Golomb-Rinzel R (exact under equal per-cell variance; ~unbiased otherwise).
+Coordination = COVARIANCE-NORMALIZED synchrony = (N*R^2-1)/(N-1) from the saved R.
+This is EXACT (validated vs brute-force to 5e-13), NOT the mean correlation coefficient:
+it deviates from the true coefficient by <=0.03 (L=10 check), roughly A/B-symmetric, so the
+A-vs-B collapse verdict is robust unless it lands near the 50%/90% threshold (then recompute
+the true coefficient at O(N^2) for that comparison).
 The dissociation claim needs BOTH: activity SEPARATES (low % inside) while coordination
 does NOT (high % inside). If A separates from B but not from B', theta carries it and the
 editor's objection survives - stated plainly."""
@@ -22,7 +25,7 @@ if not os.path.exists(fA): print("Sweep A not present yet"); raise SystemExit
 actA,rhoA,al=load(fA); mActA=actA.mean(0); mRhoA=rhoA.mean(0)
 print(f"Phase 2 collapse test (L={L}). %% of D_eff-matched points where Sweep A's mean lies")
 print(f"inside the control's 95%% bootstrap band. Pre-reg: >=90%% COLLAPSE, <=50%% SEPARATION.\n")
-print(f"{'alpha_ref':>9} {'control':>22} | {'active %inside':>14} | {'coord %inside':>13}")
+print(f"{'alpha_ref':>9} {'control':>22} | {'active %inside':>14} | {'coord(synchrony) %inside':>24}")
 print('-'*66)
 rows={}
 for aref in (0.10,0.90):
