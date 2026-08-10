@@ -55,7 +55,8 @@ def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref,
     np.random.seed(seed)
     na = alpha_values.shape[0]
     Sc_out = np.zeros(na)
-    chi_out = np.zeros(na)
+    chi_out = np.zeros(na)          # chi_ext = N*Var_t(max-min)  (range statistic)
+    chi_true_out = np.zeros(na)     # chi_true = N*Var_t(Cbar)    (intensive susceptibility)
     Rsync_out = np.zeros(na)
 
     gamma_base = (np.random.uniform(0.05, 0.34, (nx, ny))
@@ -131,11 +132,12 @@ def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref,
         meanD2 = sumD2 / cntD
         chi_out[idx] = n * (meanD2 - meanD * meanD)
         var_m = msum2 / cntD - (msum / cntD) ** 2
+        chi_true_out[idx] = n * var_m          # proper FSS susceptibility
         var_i = csum2 / cntD - (csum / cntD) ** 2
         mean_var_i = np.mean(var_i)
         r2 = var_m / (mean_var_i + 1e-12)
         Rsync_out[idx] = np.sqrt(r2) if r2 > 0.0 else 0.0
-    return Sc_out, chi_out, Rsync_out
+    return Sc_out, chi_out, chi_true_out, Rsync_out
 
 
 @njit(parallel=True, fastmath=True, cache=True)
@@ -144,14 +146,16 @@ def sweep_ensemble(seeds, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref
     na = alpha_values.shape[0]
     Sc = np.zeros((ns, na))
     chi = np.zeros((ns, na))
+    chi_true = np.zeros((ns, na))
     R = np.zeros((ns, na))
     for i in prange(ns):
-        s, c, r = sweep_one_seed(seeds[i], disease, alpha_values, steps, nx, ny, n,
-                                 sigma, i0_ref, legacy)
+        s, c, ct, r = sweep_one_seed(seeds[i], disease, alpha_values, steps, nx, ny, n,
+                                     sigma, i0_ref, legacy)
         Sc[i, :] = s
         chi[i, :] = c
+        chi_true[i, :] = ct
         R[i, :] = r
-    return Sc, chi, R
+    return Sc, chi, chi_true, R
 
 
 def validate():
@@ -165,7 +169,7 @@ def validate():
     grid, steps, seed = 8, 3000, 11
     n = grid * grid
     _, chi_orig, _, _, _ = f3o.run_one_seed_core(seed, False, ALPHAS, steps, grid, grid, n)
-    _, chi_mine, _ = sweep_one_seed(seed, False, ALPHAS, steps, grid, grid, n,
+    _, chi_mine, _, _ = sweep_one_seed(seed, False, ALPHAS, steps, grid, grid, n,
                                     0.4, -1.0, True)   # legacy, sigma=0.4
     d = float(np.max(np.abs(chi_orig - chi_mine)))
     print(f"validate: max|chi_orig - chi_mine| = {d:.2e}  "
@@ -188,7 +192,7 @@ def run(smoke, Ls=None, n_seeds=None, T=None, out_name="phase1_finite_size"):
 
     for L in Ls:
         n = L * L
-        _, chi, _ = sweep_ensemble(seeds, False, ALPHAS, steps, L, L, n, sigma, -1.0, False)
+        _, chi, _, _ = sweep_ensemble(seeds, False, ALPHAS, steps, L, L, n, sigma, -1.0, False)
         cm = chi.mean(0)
         k = int(np.argmax(cm))
         out[f"L{L}_chi"] = cm
@@ -237,7 +241,7 @@ def overnight(T, n_seeds=8, Ls=(32, 64, 128)):
           f"{len(alphas)} alphas, jobs={[(L,t) for L,_,t in jobs]}\n", flush=True)
     for L, i0_ref, tag in jobs:
         t0 = time.time()
-        _, chi, R = sweep_ensemble(seeds, False, alphas, steps, L, L, L * L, sigma, i0_ref, False)
+        _, chi, _, R = sweep_ensemble(seeds, False, alphas, steps, L, L, L * L, sigma, i0_ref, False)
         cm = chi.mean(0)
         k = int(np.argmax(cm))
         params = {"L": L, "condition": tag, "i0_ref": i0_ref, "T": T, "steps": steps,
@@ -267,7 +271,7 @@ def t_convergence(L=32, n_seeds=8, Ts=(200.0, 500.0, 1000.0, 2000.0)):
     for T in Ts:
         steps = int(T / DT)
         t0 = time.time()
-        _, chi, _ = sweep_ensemble(seeds, False, alphas, steps, L, L, L * L, sigma, -1.0, False)
+        _, chi, _, _ = sweep_ensemble(seeds, False, alphas, steps, L, L, L * L, sigma, -1.0, False)
         cm = chi.mean(0)
         k = int(np.argmax(cm))
         rows.append((T, steps, cm[k], alphas[k]))
