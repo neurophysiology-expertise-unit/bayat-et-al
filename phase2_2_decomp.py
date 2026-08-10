@@ -97,9 +97,9 @@ def ensemble_mask(seeds, mask, alpha_values, alpha_ref, steps, nx, ny, n, sigma)
 
 def main():
     from core.provenance import save_result
-    L = 64; aref = 0.10; ns = 40
+    L = 32; aref = 0.10; ns = 40   # L=32 first (separation was stark at L=64); 40 seeds kept
     T = 200.0; steps = int(T / DT); seeds = np.arange(11, 11 + ns); sig = SIGMA_EM_PREDICTED
-    jobs = []
+    jobs = [("A_full", np.ones(6, np.int8))]                                    # reference: all follow alpha
     for c in range(6):
         m = np.ones(6, np.int8); m[c] = 0; jobs.append((f"LOO_no{CHANNELS[c]}", m))     # leave-one-out
     for c in range(6):
