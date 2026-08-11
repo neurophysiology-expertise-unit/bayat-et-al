@@ -53,7 +53,7 @@ def hopf_alpha(gamma, i0c, taub, agrid):
     a0, a1 = agrid[i], agrid[i + 1]; r0, r1 = re[i], re[i + 1]
     return a0 + (a1 - a0) * (-r0) / (r1 - r0), re
 
-def limit_cycle_extrema(alpha, gamma, i0c, taub, T=600.0, burn=0.5):
+def limit_cycle_extrema(alpha, gamma, i0c, taub, T=400.0, burn=0.6):
     """integrate to steady state; return (Cmin,Cmax,period) of the attractor."""
     def rhs(t, y):
         C, h = y
@@ -61,7 +61,7 @@ def limit_cycle_extrema(alpha, gamma, i0c, taub, T=600.0, burn=0.5):
                 (C + A_FHN - B_FHN * h) / tau_h(alpha, taub)]
     Cs = fixed_point(alpha, gamma, i0c)
     y0 = [Cs + 0.05, (Cs + A_FHN) / B_FHN]      # kick off the fixed point
-    sol = solve_ivp(rhs, (0, T), y0, max_step=0.05, rtol=1e-8, atol=1e-10, dense_output=False)
+    sol = solve_ivp(rhs, (0, T), y0, max_step=0.1, rtol=1e-6, atol=1e-9, dense_output=False)
     m = sol.t >= burn * T
     C = sol.y[0][m]; t = sol.t[m]
     Cmin, Cmax = C.min(), C.max()
@@ -73,72 +73,59 @@ def limit_cycle_extrema(alpha, gamma, i0c, taub, T=600.0, burn=0.5):
     return Cmin, Cmax, period
 
 def main():
-    out = Path("processed_data"); rng = np.random.default_rng(11)
-    # representative (mean) unit
-    gbar = 0.195      # mean of gamma_base = mean U(0.05,0.34) * mean(1+2N) = 0.195
-    i0bar = 0.13      # 0.05 + mean U(0.01,0.15)
-    tbar = 0.8        # mean U(0.5,1.1)
-    ext = np.linspace(0.0, 3.0, 301)             # extended alpha to reveal the Hopf
-    ha, re = hopf_alpha(gbar, i0bar, tbar, ext)
-    print("=== 3.1 representative unit (mean params gamma=0.195, I0=0.13, tau_base=0.8) ===")
-    print(f"  Hopf alpha (numeric eig crossing) = {ha}  "
-          f"{'(OUTSIDE the ATP window [0,1.11])' if (ha is None or ha>1.11) else '(inside window)'}")
-    # eigenvalues at a few alpha in-window
+    out = Path("processed_data")
+    ext = np.linspace(0.0, 3.0, 301)
+    # (1) mean unit — the substantive negative result: it never bifurcates in-window
+    gbar, i0bar, tbar = 0.195, 0.13, 0.8
+    ha_mean, _ = hopf_alpha(gbar, i0bar, tbar, ext)
+    print("=== 3.1a representative MEAN unit (gamma=0.195, I0=0.13, tau_base=0.8) ===")
+    print(f"  Hopf alpha = {ha_mean}  "
+          f"{'never bifurcates on [0,3]' if ha_mean is None else ('OUTSIDE window' if ha_mean>1.11 else 'inside window')}")
     for a in (0.1, 0.5, 1.0, 1.11):
         ev, Cs, th = jac_eigs(a, gbar, i0bar, tbar)
-        print(f"    a={a:4.2f}: C*={Cs:+.3f} tau_h={th:5.2f} eig={ev[0]:+.3f},{ev[1]:+.3f} "
+        print(f"    a={a:4.2f}: C*={Cs:+.3f} tau_h={th:5.2f} maxRe={ev.real.max():+.4f} "
               f"{'STABLE' if ev.real.max()<0 else 'UNSTABLE'}")
-    # bifurcation diagram over extended alpha
-    Cstar = np.array([fixed_point(a, gbar, i0bar) for a in ext])
-    stab = np.array([jac_eigs(a, gbar, i0bar, tbar)[0].real.max() < 0 for a in ext])
-    lc = np.array([limit_cycle_extrema(a, gbar, i0bar, tbar) for a in ext])
-    cmin, cmax, per = lc[:, 0], lc[:, 1], lc[:, 2]
 
-    # period behaviour near onset -> Hopf vs SNIC
-    print("\n=== Hopf vs SNIC (period just past onset; finite+~const => Hopf, diverging => SNIC) ===")
-    if ha is not None:
-        for a in [ha + d for d in (0.02, 0.05, 0.1, 0.3, 0.6)]:
-            _, _, P = limit_cycle_extrema(a, gbar, i0bar, tbar)
-            print(f"    a={a:5.3f}: period={P:7.3f}")
+    # (2) representative OSCILLATING TAIL unit for the diagram (high positive gamma)
+    gdia, i0dia, tdia = 0.80, 0.13, 0.8
+    adia = np.linspace(0.0, 2.0, 161)
+    hd, red = hopf_alpha(gdia, i0dia, tdia, adia)
+    Cstar = np.array([fixed_point(a, gdia, i0dia) for a in adia])
+    stab = red < 0
+    cmin = Cstar.copy(); cmax = Cstar.copy(); per = np.full(len(adia), np.nan)
+    for i, a in enumerate(adia):                 # integrate limit cycle ONLY where FP is unstable
+        if not stab[i]:
+            cmin[i], cmax[i], per[i] = limit_cycle_extrema(a, gdia, i0dia, tdia)
+    print(f"\n=== 3.1b representative TAIL unit (gamma=0.80): Hopf alpha = {hd:.3f} ===")
 
-    # heterogeneous ensemble: distribution of Hopf-onset alpha over the real param distributions
-    print("\n=== 3.1 heterogeneity: fraction of units past Hopf vs alpha (const-I0) ===")
-    M = 4000
-    g = rng.uniform(0.05, 0.34, M) * (1.0 + 2.0 * rng.standard_normal(M))
-    i0 = 0.05 + rng.uniform(0.01, 0.15, M)
-    tb = rng.uniform(0.5, 1.1, M)
-    onset = np.array([(lambda v: np.inf if v is None else v)(hopf_alpha(g[k], i0[k], tb[k], ext)[0])
-                      for k in range(M)], dtype=float)
-    win = np.linspace(0.0, 1.11, 21)
-    frac = np.array([np.mean(onset <= a) for a in win])
-    # simulated activity for shape comparison
-    sim = np.load("processed_data/phase2v3_const_L32_A_full.npz")
-    aA = sim["active"].mean(0); als = sim["alphas"]
-    print(f"  units with Hopf-onset inside [0,1.11]: {100*np.mean(onset<=1.11):.1f}%   "
-          f"(median finite onset {np.median(onset[np.isfinite(onset)]):.2f})")
-    print(f"  {'alpha':>6} {'frac_osc':>9} {'sim_active':>11}")
-    for a, fr in zip(win, frac):
-        j = int(np.argmin(abs(als - a)))
-        print(f"  {a:6.3f} {fr:9.3f} {aA[j]:11.3f}")
+    # (3) Hopf vs SNIC — period just past onset (finite+~const => Hopf; diverging => SNIC)
+    print("\n=== Hopf vs SNIC: period vs distance past onset (tail unit) ===")
+    for d in (0.02, 0.05, 0.1, 0.3, 0.6):
+        _, _, P = limit_cycle_extrema(hd + d, gdia, i0dia, tdia)
+        print(f"    a=onset+{d:4.2f} ({hd+d:5.3f}): period={P:7.3f}")
+    print("  (unique fixed point for all alpha => no SNIC structurally; finite period confirms Hopf)")
 
-    np.savez_compressed(out / "phase3_bifurcation.npz", ext=ext, Cstar=Cstar, stab=stab,
-                        cmin=cmin, cmax=cmax, period=per, re=re, hopf_alpha=(ha or np.inf),
-                        onset=onset, win=win, frac=frac, sim_alpha=als, sim_active=aA)
+    # (4) ensemble fraction panel — reuse the quantitative result from phase3_hopf_fraction
+    hf = np.load("processed_data/phase3_hopf_fraction.npz")
+    als, aA, frac = hf["alphas"], hf["A_act"], hf["f_det"]
 
-    # figure
+    np.savez_compressed(out / "phase3_bifurcation.npz", adia=adia, Cstar=Cstar, stab=stab,
+                        cmin=cmin, cmax=cmax, period=per, re=red, hopf_tail=hd,
+                        mean_hopf=(np.inf if ha_mean is None else ha_mean),
+                        sim_alpha=als, sim_active=aA, frac=frac)
+
     fig, ax = plt.subplots(1, 3, figsize=(15, 4.2))
-    st = stab
-    ax[0].plot(ext[st], Cstar[st], 'b-', lw=2, label='stable FP')
-    ax[0].plot(ext[~st], Cstar[~st], 'b--', lw=2, label='unstable FP')
+    ax[0].plot(adia[stab], Cstar[stab], 'b-', lw=2, label='stable FP')
+    ax[0].plot(adia[~stab], Cstar[~stab], 'b--', lw=2, label='unstable FP')
     osc = (cmax - cmin) > 1e-3
-    ax[0].plot(ext[osc], cmax[osc], 'r.', ms=3); ax[0].plot(ext[osc], cmin[osc], 'r.', ms=3, label='limit cycle')
-    if ha: ax[0].axvline(ha, color='k', ls=':', label=f'Hopf a={ha:.2f}')
+    ax[0].plot(adia[osc], cmax[osc], 'r.', ms=3); ax[0].plot(adia[osc], cmin[osc], 'r.', ms=3, label='limit cycle')
+    ax[0].axvline(hd, color='k', ls=':', label=f'Hopf a={hd:.2f}')
     ax[0].axvspan(0, 1.11, color='gray', alpha=0.12, label='ATP window')
-    ax[0].set_xlabel('alpha (ATP)'); ax[0].set_ylabel('C'); ax[0].set_title('Bifurcation diagram (mean unit)'); ax[0].legend(fontsize=7)
-    ax[1].plot(ext, re, 'k-'); ax[1].axhline(0, color='r', ls='--'); ax[1].axvspan(0,1.11,color='gray',alpha=0.12)
-    ax[1].set_xlabel('alpha'); ax[1].set_ylabel('max Re(eig)'); ax[1].set_title('Leading eigenvalue')
-    ax[2].plot(win, frac, 'g-o', ms=3, label='frac units past Hopf')
-    ax[2].plot(als, aA / aA.max(), 'm-s', ms=3, label='sim active (norm)')
+    ax[0].set_xlabel('alpha (ATP)'); ax[0].set_ylabel('C'); ax[0].set_title('Bifurcation diagram (tail unit, gamma=0.8)'); ax[0].legend(fontsize=7)
+    ax[1].plot(adia, red, 'k-'); ax[1].axhline(0, color='r', ls='--'); ax[1].axvspan(0,1.11,color='gray',alpha=0.12)
+    ax[1].set_xlabel('alpha'); ax[1].set_ylabel('max Re(eig)'); ax[1].set_title('Leading eigenvalue (tail unit)')
+    ax[2].plot(als, frac, 'g-o', ms=3, label='f_det (frac past Hopf)')
+    ax[2].plot(als, aA, 'm-s', ms=3, label='sim active fraction')
     ax[2].set_xlabel('alpha'); ax[2].set_ylabel('fraction'); ax[2].set_title('Heterogeneity -> macro activity'); ax[2].legend(fontsize=7)
     fig.tight_layout(); fig.savefig(out / "phase3_bifurcation.png", dpi=110)
     print(f"\nwrote {out/'phase3_bifurcation.npz'} and .png")
