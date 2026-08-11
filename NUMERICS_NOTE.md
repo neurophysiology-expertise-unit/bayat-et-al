@@ -159,3 +159,40 @@ of genuine variance reduction. A form-sensitivity check confirmed this: at L=32 
 was 0.186 (parabola) / 0.191 (Lorentzian) / 0.131 (log-normal), a spread of 0.060 against the
 parabola's own bootstrap CI of 0.022. All finite-size statistics are therefore reported as
 argmax-based with inside-resample bootstrap CIs.
+
+## sigma bookkeeping — the ONE authoritative place (2026-08-11)
+
+Three separate factors sit between the manuscript's "sigma" and the physical noise amplitude.
+Recording them here so the number that goes into Methods is unambiguous and the Fig-5 axis is
+labelled correctly. This is the same error class as the original dt-vs-sqrt(dt) bug: right
+internally, wrong externally, would repeat it.
+
+  sigma_nominal      = 0.4            (Table 1 "baseline noise amplitude", old-scheme convention)
+  NOISE_MULT         = 3.0            (undocumented x3 in every core; absent from Methods/Table 1)
+  dt                 = 0.0034         (confirmed from figfig1/figfig2; NOT Table 1's 0.003-0.007)
+  SIGMA_EM_PREDICTED = 0.4*sqrt(dt)   = 0.02332   INTERNAL CODE CONSTANT (pre-x3), not physical
+  sigma_true         = 3*0.4*sqrt(dt) = 0.06997 ~ 0.0700   PHYSICAL Euler-Maruyama amplitude
+
+**Report sigma_true ~ 0.0700 in Methods** (the coefficient of dW at the base). SIGMA_EM_PREDICTED
+(0.02332) and NOISE_MULT (3.0) are internal code constants; sigma_true = NOISE_MULT *
+SIGMA_EM_PREDICTED. Do NOT print 0.02332 or 0.4 as "the noise amplitude" externally.
+
+**Conversion for the old figures:** any nominal sigma maps to physical via
+sigma_true = sigma_nominal * 3*sqrt(dt) = sigma_nominal * 0.17493.
+  Fig 5 plotted axis [0.05, 0.8] (nominal)  ->  sigma_true [0.0087, 0.140].
+
+**Convention audit — every place a sigma is printed/plotted/written:**
+- Fig 5 phase-diagram sigma axis: currently NOMINAL; must be relabelled to sigma_true (x0.1749).
+- T-convergence table + all sweep stdout ("sigma=0.02332"): that is SIGMA_EM_PREDICTED, the
+  internal code nominal, NOT sigma_true. Fine internally; never quote it as the amplitude.
+- phase-diagram config / any sigma arg to the sweeps: SIGMA_EM_PREDICTED convention.
+
+## Model facts confirmed from Bayat's originals (figfig1/figfig2, 2026-08-11)
+
+- **Two different I0 schemes, undocumented.** Single-cell (figfig1) uses a three-tier CONSTANT
+  I0 (0.38 / 0.5 / 0.62 by regime), no alpha dependence. Network (figfig2) uses
+  I0 = 0.05 + (1/sqrt(A))*U(0.01,0.15). Methods states neither split.
+- **dt = 0.0034** in both files (confirms the back-solved 0.00339; contradicts Table 1's
+  "0.003-0.007" range, which should be corrected to the single value used).
+- **np.clip(C, -4, 4)** in both — a stabilization step absent from Methods. core/model.py has it
+  (as np.minimum(np.maximum(...))). Document it in Methods either way.
