@@ -26,7 +26,7 @@ from core.provenance import save_result
 
 
 @njit(fastmath=True, cache=True)
-def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0):
+def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0):
     np.random.seed(seed)
     na = alpha_values.shape[0]
     act = np.zeros(na)
@@ -53,6 +53,8 @@ def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_fo
         # effective alphas per channel group:
         aD = alpha                                     # D_eff always follows alpha
         aT = alpha if (mode == 0 or mode == 2) else alpha_ref   # theta: A and B' follow alpha
+        if theta_ovr >= 0.0:                                     # Phase 3.1 readout test: freeze theta
+            aT = theta_ovr
         aO = alpha if mode == 0 else alpha_ref         # other channels: only A follows alpha
 
         gamma = gamma_base
@@ -106,14 +108,14 @@ def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_fo
 
 
 @njit(parallel=True, fastmath=True, cache=True)
-def ensemble_p2(seeds, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0):
+def ensemble_p2(seeds, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0):
     ns = seeds.shape[0]
     na = alpha_values.shape[0]
     A = np.zeros((ns, na))
     R = np.zeros((ns, na))
     D = np.zeros((ns, na))
     for i in prange(ns):
-        a, r, d = sweep_p2(seeds[i], mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form)
+        a, r, d = sweep_p2(seeds[i], mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form, theta_ovr)
         A[i, :] = a
         R[i, :] = r
         D[i, :] = d
