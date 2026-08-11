@@ -26,7 +26,8 @@ from core.provenance import save_result
 
 
 @njit(fastmath=True, cache=True)
-def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0):
+def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0,
+             kappa_scale=1.0):
     np.random.seed(seed)
     na = alpha_values.shape[0]
     act = np.zeros(na)
@@ -42,7 +43,7 @@ def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_fo
         I0_base = np.random.uniform(0.01, 0.15, (nx, ny))  # submitted / bounded / const
     tau_base = np.random.uniform(0.5, 1.1, (nx, ny))
     D0_base = np.random.uniform(0.05, 0.5, (nx, ny))
-    kappa_base = np.random.uniform(1.0, 4.0, (nx, ny))
+    kappa_base = np.random.uniform(1.0, 4.0, (nx, ny)) * kappa_scale  # scale AFTER draw: RNG stream preserved
     C = np.random.uniform(-0.1, 0.3, (nx, ny))
     h = np.random.uniform(0.4, 1.2, (nx, ny))
     t_start = int(0.3 * steps)
@@ -108,14 +109,16 @@ def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_fo
 
 
 @njit(parallel=True, fastmath=True, cache=True)
-def ensemble_p2(seeds, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0):
+def ensemble_p2(seeds, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0,
+                kappa_scale=1.0):
     ns = seeds.shape[0]
     na = alpha_values.shape[0]
     A = np.zeros((ns, na))
     R = np.zeros((ns, na))
     D = np.zeros((ns, na))
     for i in prange(ns):
-        a, r, d = sweep_p2(seeds[i], mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form, theta_ovr)
+        a, r, d = sweep_p2(seeds[i], mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form,
+                           theta_ovr, kappa_scale)
         A[i, :] = a
         R[i, :] = r
         D[i, :] = d
