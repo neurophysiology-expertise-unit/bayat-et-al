@@ -8,7 +8,7 @@ files = sorted(glob.glob("processed_data/phase3_baseline_b*.npz"))
 data = {}
 al = None
 for f in files:
-    z = np.load(f); b = float(f.split("_b")[1].replace(".npz", ""))
+    z = np.load(f); b = float(f.split("_b")[-1].replace(".npz", ""))
     data[b] = (z["active"].mean(0), rho(z["R"]).mean(0)); al = z["alphas"]
 bs = sorted(data)
 print("active fraction vs alpha, per baseline:")
