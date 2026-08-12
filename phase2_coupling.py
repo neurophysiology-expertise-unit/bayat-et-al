@@ -27,7 +27,7 @@ from core.provenance import save_result
 
 @njit(fastmath=True, cache=True)
 def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0,
-             kappa_scale=1.0):
+             kappa_scale=1.0, i0_baseline=-1.0):
     np.random.seed(seed)
     na = alpha_values.shape[0]
     act = np.zeros(na)
@@ -63,7 +63,8 @@ def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_fo
         if i0_form == 0:
             I0 = 0.05 + (1.0 / np.sqrt(aO)) * I0_base    # 0 submitted (1/sqrt sign error)
         elif i0_form == 1:
-            I0 = 0.2 + aO * I0_base                       # 1 Bayat's proposed (I0_base=U(0.1,0.5))
+            base = i0_baseline if i0_baseline >= 0.0 else 0.2   # swept baseline excitability (test 2026-08-12)
+            I0 = base + aO * I0_base                       # 1 Bayat's proposed (I0_base=U(0.1,0.5))
         elif i0_form == 2:
             I0 = 0.05 + I0_base * (1.0 + np.sqrt(aO))     # 2 bounded, preserves a=0 heterogeneity
         else:
@@ -110,7 +111,7 @@ def sweep_p2(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_fo
 
 @njit(parallel=True, fastmath=True, cache=True)
 def ensemble_p2(seeds, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form=0, theta_ovr=-1.0,
-                kappa_scale=1.0):
+                kappa_scale=1.0, i0_baseline=-1.0):
     ns = seeds.shape[0]
     na = alpha_values.shape[0]
     A = np.zeros((ns, na))
@@ -118,7 +119,7 @@ def ensemble_p2(seeds, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i
     D = np.zeros((ns, na))
     for i in prange(ns):
         a, r, d = sweep_p2(seeds[i], mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form,
-                           theta_ovr, kappa_scale)
+                           theta_ovr, kappa_scale, i0_baseline)
         A[i, :] = a
         R[i, :] = r
         D[i, :] = d
