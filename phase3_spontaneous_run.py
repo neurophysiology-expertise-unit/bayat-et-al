@@ -9,6 +9,8 @@ import numpy as np
 from numba import njit
 from scipy.signal import find_peaks
 from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED
+from core.provenance import save_result
+from pathlib import Path
 
 SEC_PER_AU = 1.0; PK_HEIGHT = 0.5; PK_PROM = 1.0; PK_DIST_AU = 2.0
 
@@ -54,7 +56,9 @@ def main():
     print(f"Spontaneous rate at alpha=0, L={L}, T={T:.0f}s={T_min:.1f}min, {len(seeds)} seeds, "
           f"thresholds H={PK_HEIGHT} P={PK_PROM} dist={PK_DIST_AU}AU. Measured band 0.1-0.65 /min/cell.\n")
     print(f"  {'baseline':>8} {'rate/min/cell':>14} {'active_frac(a=0)':>16} {'%cells active':>13}")
-    for base in (0.05, 0.15, 0.25, 0.35, 0.45):
+    BASES = (0.05, 0.15, 0.25, 0.35, 0.45)
+    R_mean=[]; R_sd=[]; AF=[]; PC=[]
+    for base in BASES:
         rates = []; afracs = []; pcactive = []
         for sd in seeds:
             rec = run_C(sd, base, steps, L, L, sig, stride)             # (nframes, n)
@@ -65,8 +69,18 @@ def main():
             rates.append(npk / rec.shape[1] / T_min)
             afracs.append(float((0.5 * (1 + np.tanh(ETA * (rec - 0.5)))).mean()))
             pcactive.append(100.0 * n_active_cells / rec.shape[1])
+        R_mean.append(np.mean(rates)); R_sd.append(np.std(rates))
+        AF.append(np.mean(afracs)); PC.append(np.mean(pcactive))
         print(f"  {base:8.2f} {np.mean(rates):8.3f}+/-{np.std(rates):.3f} "
               f"{np.mean(afracs):16.4f} {np.mean(pcactive):12.1f}%", flush=True)
+    p = save_result(Path("processed_data")/"fig2_spontaneous_rate.npz",
+                    {"L": L, "T": T, "steps": steps, "sigma": sig, "seeds": list(seeds),
+                     "alpha": 0.0, "i0_form": 1, "baselines": list(BASES),
+                     "PK_HEIGHT": PK_HEIGHT, "PK_PROM": PK_PROM, "PK_DIST_AU": PK_DIST_AU,
+                     "SEC_PER_AU": SEC_PER_AU},
+                    baselines=np.array(BASES), rate_mean=np.array(R_mean), rate_sd=np.array(R_sd),
+                    active_frac=np.array(AF), pct_cells_active=np.array(PC))
+    print(f"  -> {p.name}", flush=True)
 
 
 if __name__ == "__main__":
