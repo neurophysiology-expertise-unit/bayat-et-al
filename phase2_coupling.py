@@ -21,7 +21,8 @@ from pathlib import Path
 import numpy as np
 from numba import njit, prange
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED
+from core.model import (laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,
+                        SIGMA_EM_PREDICTED, I0_BASE)
 from core.provenance import save_result
 
 
@@ -132,21 +133,31 @@ ALPHAS = np.linspace(0.01, 1.11, 21)
 def main():
     L = int(sys.argv[1]); aref = float(sys.argv[2]); ns = int(sys.argv[3]) if len(sys.argv) > 3 else 40
     i0_form = int(sys.argv[4]) if len(sys.argv) > 4 else 0   # I0 variant 0..3 (new_plan robustness table)
+    # i0_form 1 carries a baseline excitability. It used to fall through to the sweep_p2 default of
+    # 0.2, which was recorded nowhere, so the file could not disclose what it ran at -- and
+    # figdata_fig2.py then paired that sweep against a recruited fraction computed at I0_BASE.
+    # The baseline is now explicit, defaulted to the canonical constant, and stamped into params.
+    i0_baseline = float(sys.argv[5]) if len(sys.argv) > 5 else (I0_BASE if i0_form == 1 else -1.0)
     vtag = {0: "submitted", 1: "bayat", 2: "bounded", 3: "const"}[i0_form]
     pfx = f"phase2v{i0_form}_{vtag}"                          # distinct per variant; never overwrites
+    if i0_baseline >= 0.0:
+        pfx += f"_b{i0_baseline:.2f}"                         # never clobbers the earlier 0.2 sweeps
     T = 200.0; steps = int(T / DT); seeds = np.arange(11, 11 + ns); sig = SIGMA_EM_PREDICTED
     names = {0: "A_full", 1: "B_coupling", 2: "Bprime_coupθ"}
     for mode in (0, 1, 2):
         if mode == 0 and abs(aref - 0.10) > 1e-9:
             continue    # Sweep A is alpha_ref-independent; run it once (with the 0.10 batch)
         t0 = time.time()
-        A, R, D = ensemble_p2(seeds, mode, ALPHAS, aref, steps, L, L, L * L, sig, i0_form)
+        A, R, D = ensemble_p2(seeds, mode, ALPHAS, aref, steps, L, L, L * L, sig, i0_form,
+                              i0_baseline=i0_baseline)
         tag = names[mode] if mode == 0 else f"{names[mode]}_aref{aref:.2f}"
         p = save_result(Path("processed_data") / f"{pfx}_L{L}_{tag}.npz",
                         {"L": L, "mode": mode, "alpha_ref": aref, "n_seeds": ns, "T": T, "i0_form": i0_form,
+                         "i0_baseline": i0_baseline, "seeds": seeds.tolist(),
                          "steps": steps, "sigma": sig, "alphas": ALPHAS.tolist()},
                         alphas=ALPHAS, active=A, R=R, Deff=D)
-        print(f"L={L} {tag}: active/R/Deff {A.shape} ({time.time()-t0:.0f}s) -> {p.name}", flush=True)
+        print(f"L={L} {tag} (i0_baseline={i0_baseline}): active/R/Deff {A.shape} "
+              f"({time.time()-t0:.0f}s) -> {p.name}", flush=True)
 
 
 if __name__ == "__main__":

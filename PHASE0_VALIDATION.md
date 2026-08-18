@@ -46,6 +46,15 @@ reproducibility gap, not a `core/model.py` problem** — but it should be run do
 Fig 1 is reused. Likely a one-line parameter difference; a question for Bayat (who wrote
 the code per CRediT).
 
+**RESOLVED 2026-08-14 — no email needed.** The drift is the ATP level itself, not a model
+parameter. The repo script carried `ATP_LEVELS = [0.19, 0.40, 0.9]`; the published figure
+used the intermediate point at **0.27**. Sweeping the intermediate level under the
+corrected-EM scheme at `SIGMA_EM_PREDICTED = 0.02332` gives `A=0.27 -> 1.33 ± 0.18`, an
+exact match to the published value including its SD, with the endpoints unchanged
+(0.13 ± 0.05, 2.86 ± 0.05). All three published rates now reproduce. `figdata_fig1.py`
+carries the corrected level and the sigma import; the ATP axis of Figure 1 is therefore
+0.19 / 0.27 / 0.90, and the manuscript caption states those values.
+
 ## Gate 2 — is the chi peak an artifact of the `I0 = 1/sqrt(A)` drive?
 
 Healthy chi sweep (fig_3_criticality_ci protocol, reduced budget: grid 10, T=200, 10
@@ -76,5 +85,7 @@ does not carry the headline.
   Whether the `1/sqrt(A)` sign was *intended* is a question for Bayat, not a simulation —
   **left for the authors to confirm before the Phase 4 Methods rewrite.** Do not silently
   pick a different form.
-- **Fig 1 intermediate rate (1.96 vs 1.33) is unresolved** and flagged for the same email.
+- ~~**Fig 1 intermediate rate (1.96 vs 1.33) is unresolved**~~ — RESOLVED 2026-08-14: the
+  published intermediate level is A=0.27, not the 0.40 the script carried; at 0.27 the rate
+  reproduces exactly (1.33 ± 0.18). See section 1b. Not a question for Bayat.
 - Phase 1 (finite-size scaling) is clear to start on `core/model.py` at sigma=0.02332.

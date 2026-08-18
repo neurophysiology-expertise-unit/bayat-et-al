@@ -8,3 +8,6 @@ __pycache__/
 
 # run logs
 *.log
+
+# superseded I0=0.45 results and their scripts, quarantined 2026-08-18 (nothing reads them)
+processed_data/legacy_b0.45/

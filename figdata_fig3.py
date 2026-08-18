@@ -8,7 +8,7 @@ Run: python figdata_fig3.py
 import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
 from pathlib import Path
-from core.model import DT, SIGMA_EM_PREDICTED
+from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE
 from core.provenance import save_result
 from phase3_focal_run import focal
 
@@ -26,34 +26,51 @@ def tact_and_radius(fld, L, patch):
     return tact, r
 
 
+def one_run(seed, alpha, baseline, steps, L, sig, noise_on, patch, stride, dtf):
+    fld = focal(seed, alpha, baseline, steps, L, L, sig, noise_on, patch, stride)
+    tact, r = tact_and_radius(fld, L, patch)
+    reached = (tact >= 0) & (r > patch)
+    extent = float(r[reached].max()) if reached.any() else 0.0
+    frac = float((tact >= 0).mean())
+    rr = r[reached]; tt = tact[reached].astype(float) * dtf
+    band = (rr >= 2) & (rr <= L // 2 - 2)
+    speed50 = np.nan
+    if band.sum() > 20 and np.ptp(tt[band]) > 1e-9:
+        slope = np.polyfit(rr[band], tt[band], 1)[0]
+        if slope > 1e-9:
+            speed50 = (1.0 / slope) * UM_50
+    return fld, tact, r, extent, frac, speed50
+
+
 def main():
     L = 64; T = 100.0; steps = int(T / DT); sig = SIGMA_EM_PREDICTED
-    baseline = 0.45; stride = 5; dtf = stride * DT; patch = 2; alpha = 0.01; seed = 11
+    baseline = I0_BASE; stride = 5; dtf = stride * DT; patch = 2; alpha = 0.01
+    seeds = list(range(11, 21))            # 10 seeds; heterogeneous params are seed-drawn, so BOTH
+    rep_seed = 11                          # conditions need an ensemble, not only the noisy one
     out = {}
-    print(f"Fig-3 focal data: alpha={alpha}, baseline={baseline}, L={L}, dt_frame={dtf:.4f}")
-    print(f"  {'cond':>14} {'extent(cells)':>13} {'speed_50um':>11} {'speed_25um':>11} {'frac':>6}")
+    print(f"Fig-3 focal data: alpha={alpha}, baseline={baseline}, L={L}, {len(seeds)} seeds, "
+          f"dt_frame={dtf:.4f}")
+    print(f"  {'cond':>14} {'extent(cells)':>16} {'speed_25um':>16} {'speed_50um':>16} {'frac':>14}")
     for noise_on, tag in ((False, "deterministic"), (True, "noisy")):
-        t0 = time.time()
-        fld = focal(seed, alpha, baseline, steps, L, L, sig, noise_on, patch, stride)
-        tact, r = tact_and_radius(fld, L, patch)
-        reached = (tact >= 0) & (r > patch)
-        extent = float(r[reached].max()) if reached.any() else 0.0
-        frac = float((tact >= 0).mean())
-        rr = r[reached]; tt = tact[reached].astype(float) * dtf
-        band = (rr >= 2) & (rr <= L // 2 - 2)
-        speed50 = np.nan
-        if band.sum() > 20 and np.ptp(tt[band]) > 1e-9:
-            slope = np.polyfit(rr[band], tt[band], 1)[0]
-            if slope > 1e-9:
-                speed50 = (1.0 / slope) * UM_50
-        out[f"tact_{tag}"] = tact.astype(np.int32)
-        out[f"field_{tag}"] = fld[::4].astype(np.float32)   # subsampled frames for the map panel
-        print(f"  {tag:>14} {extent:13.1f} {speed50:11.1f} {speed50/2:11.1f} {frac*100:5.0f}% "
-              f"({time.time()-t0:.0f}s)", flush=True)
-        out[f"extent_{tag}"] = extent; out[f"speed50_{tag}"] = speed50; out[f"frac_{tag}"] = frac
-    out["radius"] = r
+        t0 = time.time(); E = []; F = []; S = []
+        for sd in seeds:
+            fld, tact, r, extent, frac, speed50 = one_run(sd, alpha, baseline, steps, L, sig,
+                                                          noise_on, patch, stride, dtf)
+            E.append(extent); F.append(frac); S.append(speed50)
+            if sd == rep_seed:             # representative realization for the map/scatter panels
+                out[f"tact_{tag}"] = tact.astype(np.int32)
+                out[f"field_{tag}"] = fld[::4].astype(np.float32)
+                out["radius"] = r
+        E = np.array(E); F = np.array(F); S = np.array(S)
+        out[f"extent_{tag}_all"] = E; out[f"frac_{tag}_all"] = F; out[f"speed50_{tag}_all"] = S
+        m = lambda v: (np.nanmean(v), np.nanstd(v))
+        (em, es), (fm, fs), (sm, ss) = m(E), m(F), m(S)
+        print(f"  {tag:>14} {em:8.1f}+/-{es:<6.1f} {sm/2:8.1f}+/-{ss/2:<6.1f} "
+              f"{sm:8.1f}+/-{ss:<6.1f} {fm*100:7.0f}+/-{fs*100:<4.0f}% ({time.time()-t0:.0f}s)",
+              flush=True)
     p = save_result(Path("processed_data") / "fig3_focal.npz",
-                    {"L": L, "alpha": alpha, "baseline": baseline, "seed": seed, "T": T,
+                    {"L": L, "alpha": alpha, "baseline": baseline, "seeds": seeds,
+                     "representative_seed": rep_seed, "T": T,
                      "steps": steps, "stride": stride, "dt_frame": dtf, "patch": patch,
                      "sigma": sig, "um_per_cell_primary": UM_25, "um_per_cell_alt": UM_50},
                     **out)

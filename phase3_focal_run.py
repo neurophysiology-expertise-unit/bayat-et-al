@@ -4,13 +4,14 @@ cannot reveal a front even if the medium supports one. Here we initialize the la
 activate a central patch at t=0, and measure activation-time vs radius:
   front propagates -> t_act rises ~linearly with distance (speed = dr/dt);
   no propagation    -> only the patch (+ noise) activates, t_act flat/undefined beyond it.
-Deterministic (noise off) for a clean speed, plus noisy for realism. baseline=0.45, L=64,
+Deterministic (noise off) for a clean speed, plus noisy for realism. baseline=I0_BASE, L=64,
 alpha in {0.01, 0.12}. 1 cell=50um, 1 model-t=1s; measured wave speed 15-28 um/s (0.3-0.56 cells/s).
 Run: python phase3_focal_run.py"""
 import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
 from numba import njit
-from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED
+from core.model import (laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,
+                        SIGMA_EM_PREDICTED, I0_BASE)
 
 
 @njit(fastmath=True, cache=False)
@@ -102,7 +103,7 @@ def activation_analysis(fld, dt_frame, um, tag):
 
 def main():
     L = 64; T = 100.0; steps = int(T / DT); sig = SIGMA_EM_PREDICTED
-    baseline = 0.45; stride = 5; dt_frame = stride * DT; um = 50.0; patch = 2
+    baseline = I0_BASE; stride = 5; dt_frame = stride * DT; um = 50.0; patch = 2
     for alpha in (0.01, 0.12):
         for noise_on, ntag in ((False, "deterministic"), (True, "noisy")):
             fld = focal(11, alpha, baseline, steps, L, L, sig, noise_on, patch, stride)

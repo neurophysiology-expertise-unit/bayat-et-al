@@ -13,7 +13,7 @@ Run: python figdata_fig4.py
 import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
 from pathlib import Path
-from core.model import DT, SIGMA_EM_PREDICTED
+from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE
 from core.provenance import save_result
 from phase3_refractory import run_ref, focal_stats
 from phase3_nucleation import nucleation_events
@@ -41,7 +41,7 @@ def r2_within(fld, L, dtf, patch, rmax):
 
 
 def main():
-    L = 64; sig = SIGMA_EM_PREDICTED; baseline = 0.45; stride = 5; dtf = stride * DT
+    L = 64; sig = SIGMA_EM_PREDICTED; baseline = I0_BASE; stride = 5; dtf = stride * DT
     patch = 2; alpha = 0.01; seed = 11
     out = {}
 

@@ -1,6 +1,6 @@
 """Decremental (partially-regenerative) release test (2026-08-12) — the extent mechanism.
 Refractory (tau_ref=15s, the value that best suppressed spurious nucleation) + decremental broadcast
-gain, on FOCAL initiation at alpha=0.01, baseline=0.45, L=64. Sweep the decay parameter GAMMA_REGEN.
+gain, on FOCAL initiation at alpha=0.01, baseline=I0_BASE (core/model.py), L=64. Sweep the decay parameter GAMMA_REGEN.
 
 Mechanism (MacDonald-Silva partial regeneration): broadcast B = C_active * g * (not refractory),
 g in [0,1] a per-cell release gain reset at firing to inherit a SUB-UNITY fraction of the coupling
@@ -15,7 +15,8 @@ Run: python phase3_decremental.py
 import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
 from numba import njit
-from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED
+from core.model import (laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,
+                        SIGMA_EM_PREDICTED, I0_BASE)
 
 C_DOWN = -1.2; K_REF = 20.0; SCALE = 0.15; G_FLOOR = 0.02; UM = 50.0
 
@@ -100,7 +101,7 @@ def focal_lin(fld, dtf, L, patch):
 
 
 def main():
-    L = 64; sig = SIGMA_EM_PREDICTED; baseline = 0.45; stride = 5; patch = 2; dtf = stride * DT
+    L = 64; sig = SIGMA_EM_PREDICTED; baseline = I0_BASE; stride = 5; patch = 2; dtf = stride * DT
     alpha = 0.01; tau_ref = 15.0; steps = int(120.0 / DT)
     GAMMAS = [1.0, 0.8, 0.6, 0.5, 0.4, 0.3, 0.25, 0.20, 0.15, 0.10, 0.05]
     print(f"Decremental release + refractory(tau=15s), focal alpha={alpha}, baseline={baseline}, L={L}.")

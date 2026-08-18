@@ -4,7 +4,7 @@ synchrony into a spatially bounded travelling front at physiological speed under
 Standard excitable-medium refractory (cf. Lallouette-De Pitta-Berry UAR): when a cell completes a
 spike (falling edge of C_active through 0.5), start a timer tau_ref during which (a) its coupling
 BROADCAST is gated off (refractory cells don't drive neighbours) and (b) a hyperpolarizing clamp
-holds it near rest so it cannot re-fire. Then restore. Everything else = baseline=0.45 corrected
+holds it near rest so it cannot re-fire. Then restore. Everything else = baseline=I0_BASE corrected
 model. Sweep tau_ref, alpha in {0.01,0.12}, L=64.
 
 Reports per (alpha, tau_ref): spontaneous lag-vs-distance (discriminator), focal front extent &
@@ -14,7 +14,8 @@ Run: python phase3_refractory.py
 import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
 from numba import njit
-from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED
+from core.model import (laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,
+                        SIGMA_EM_PREDICTED, I0_BASE)
 
 C_DOWN = -1.2; K_REF = 20.0
 
@@ -118,7 +119,7 @@ def focal_stats(A, dtf, um, L):
 
 
 def main():
-    L = 64; sig = SIGMA_EM_PREDICTED; baseline = 0.45; stride = 5; patch = 2; um = 50.0
+    L = 64; sig = SIGMA_EM_PREDICTED; baseline = I0_BASE; stride = 5; patch = 2; um = 50.0
     dtf = stride * DT
     TAUS = [0.0, 5.0, 15.0, 30.0]          # tau_ref in model-time (s); 0 = control (no refractory)
     for alpha in (0.01, 0.12):

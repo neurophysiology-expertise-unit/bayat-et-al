@@ -2,7 +2,7 @@
 or incoherent? The linear t_act-vs-radius test assumes CONSTANT speed; an attenuating front is
 expected to decelerate, so a low linear R^2 may be the right physics failing the wrong test.
 
-Per gamma_regen (focal, alpha=0.01, baseline=0.45, tau_ref=15s, L=64):
+Per gamma_regen (focal, alpha=0.01, baseline=I0_BASE, tau_ref=15s, L=64):
   (a) LINEAR fit R^2  -- reported as-is, pre-registered threshold NOT adjusted
   (b) DECELERATING fit t_act = a*(1 - exp(-r/lambda)) -- R^2 and decay length lambda; does lambda
       track the extent?
@@ -14,7 +14,7 @@ Run: python phase3_frontshape.py
 import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
 from scipy.optimize import curve_fit
-from core.model import DT, SIGMA_EM_PREDICTED
+from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE
 from phase3_decremental import run_dr
 
 UM = 50.0
@@ -78,7 +78,7 @@ def main():
           f"{'lambda':>7} {'lam/ext':>8}")
     rows = {}
     for gr in (0.30, 0.20, 0.10):
-        f = run_dr(11, 0.01, 0.45, gr, 15.0, False, steps, L, L, sig, stride, patch)
+        f = run_dr(11, 0.01, I0_BASE, gr, 15.0, False, steps, L, L, sig, stride, patch)
         s = shape(f, dtf, L, patch)
         if s is None:
             print(f"  {gr:6.2f}  (too few activated cells)"); continue

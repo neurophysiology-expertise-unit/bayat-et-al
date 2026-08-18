@@ -15,7 +15,7 @@ Run: python phase3_nucleation.py
 """
 import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
-from core.model import DT, SIGMA_EM_PREDICTED
+from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE
 from phase3_refractory import run_ref
 from phase3_lagcheck import lag_quality
 
@@ -86,7 +86,7 @@ def pooled_b(A, dtf, L):
     return np.nan, np.nan, len(dd), qual
 
 def main():
-    L = 64; sig = SIGMA_EM_PREDICTED; baseline = 0.45; stride = 5; dtf = stride * DT; patch = 2
+    L = 64; sig = SIGMA_EM_PREDICTED; baseline = I0_BASE; stride = 5; dtf = stride * DT; patch = 2
     T = 300.0; steps = int(T / DT); Tsec = T
     print(f"Nucleation-source analysis, alpha=0.01, L={L}, T={T:.0f}s. Focal ref: 13.3 um/s linear.\n")
     print(f"  {'tau_ref':>7} | {'nucl/1e3cell/s':>14} | {'pooled b (CI)':>16} | "

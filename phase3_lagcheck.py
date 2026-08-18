@@ -9,7 +9,7 @@ alpha=0.01, tau_ref in {0,5,15}, L=64, T=300, noise ON. Run: python phase3_lagch
 """
 import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
 import numpy as np
-from core.model import DT
+from core.model import DT, I0_BASE
 from phase3_refractory import run_ref
 
 UM = 50.0
@@ -67,17 +67,43 @@ def analyze(A, dtf, L, tag):
         print(f"    power-law exponent b = {b:.2f} +/- {ci:.2f} (95% CI, n={n} resolved pts) -> {interp}")
     else:
         print(f"    too few resolved points ({len(dd)}) for a power-law fit -> lag ill-defined = NOT a clean wave")
+    return q
 
 def main():
-    L = 64; sig = __import__('core.model', fromlist=['SIGMA_EM_PREDICTED']).SIGMA_EM_PREDICTED
-    baseline = 0.45; stride = 5; dtf = stride * DT; patch = 2
-    print(f"Spontaneous-field lag quality, alpha=0.01, L={L}, T=300 (dt_frame={dtf:.4f} model-t=s).")
-    print("Focal-initiation reference: 13.3 um/s, linear in radius.")
-    for tau in (0.0, 5.0, 15.0):
+    """One seed per process. Persists a provenance-stamped npz: this result carries a claim in the
+    text, so it must not live only in a logfile (new_plan.md 359-375)."""
+    from pathlib import Path
+    from core.model import SIGMA_EM_PREDICTED
+    from core.provenance import save_result
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 11
+    L = 64; sig = SIGMA_EM_PREDICTED
+    baseline = I0_BASE; stride = 5; dtf = stride * DT; patch = 2
+    TAUS = (0.0, 5.0, 15.0)
+    print(f"Spontaneous-field lag quality, seed={seed}, alpha=0.01, L={L}, T=300 "
+          f"(dt_frame={dtf:.4f} model-t=s).")
+    lag_f, corr, res = [], [], []
+    ds = None
+    for tau in TAUS:
         t0 = time.time()
-        A = run_ref(11, 0.01, baseline, tau, True, False, int(300.0 / DT), L, L, sig, stride, patch).astype(np.float64)
-        analyze(A, dtf, L, f"tau_ref={tau:.0f}s")
-        print(f"    ({time.time()-t0:.0f}s)")
+        A = run_ref(seed, 0.01, baseline, tau, True, False, int(300.0 / DT), L, L, sig,
+                    stride, patch).astype(np.float64)
+        q = analyze(A, dtf, L, f"tau_ref={tau:.0f}s")
+        ds = [d for d, _, _ in q]
+        ref = q[0][2]; max_lag = min(A.shape[0] // 2 - 1, 3000)
+        lag_f.append([lag for _, lag, _ in q])
+        corr.append([pc for _, _, pc in q])
+        res.append([1.0 if (pc > 0.08 and pc > 0.25 * ref and lag < max_lag * 0.95) else 0.0
+                    for _, lag, pc in q])
+        print(f"    ({time.time()-t0:.0f}s)", flush=True)
+    p = save_result(Path("processed_data") / f"lagcheck_seed{seed}.npz",
+                    {"L": L, "alpha": 0.01, "baseline": baseline, "seed": seed, "T": 300.0,
+                     "taus": list(TAUS), "separations": ds, "dt_frame": dtf, "stride": stride,
+                     "sigma": sig, "um_per_cell_primary": 25.0, "um_per_cell_alt": UM,
+                     "resolved_rule": "peakcorr>0.08 and >0.25*corr(d=1) and lag<0.95*max_lag"},
+                    taus=np.array(TAUS), separations=np.array(ds, dtype=float),
+                    lag_frames=np.array(lag_f, dtype=float), peakcorr=np.array(corr),
+                    resolved=np.array(res), dt_frame=np.array([dtf]))
+    print(f"wrote {p.name}")
 
 if __name__ == "__main__":
     main()
