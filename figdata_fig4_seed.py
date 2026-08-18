@@ -8,7 +8,7 @@ aggregates them into one provenance-stamped file.
 
 Run: python figdata_fig4_seed.py <seed>
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE

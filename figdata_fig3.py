@@ -5,7 +5,7 @@ log. Prints the quantities previously reported so they can be checked against th
   alpha=0.01 noisy        : speed 134.7 um/s, extent 44.6 cells, activated frac 98%
 Run: python figdata_fig3.py
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE

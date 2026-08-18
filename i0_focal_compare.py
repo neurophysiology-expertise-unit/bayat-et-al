@@ -13,7 +13,7 @@ the current manuscript numbers were produced at.
 
 Run: python i0_focal_compare.py [baseline ...]      (default 0.40 0.41 0.45)
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from core.model import DT, SIGMA_EM_PREDICTED

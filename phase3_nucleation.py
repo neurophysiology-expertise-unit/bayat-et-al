@@ -13,7 +13,7 @@ Reports per tau_ref (alpha=0.01, L=64, noise ON):
      at ~13 um/s even when pooled b~2, the pooled statistic is the multi-source artifact.
 Run: python phase3_nucleation.py
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE
 from phase3_refractory import run_ref

@@ -7,7 +7,7 @@ Fit log(lag)=log a + b log d -> exponent b with 95% CI over WELL-RESOLVED d only
 implied speed to the focal-initiation 13.3 um/s (which was linear in radius = a clean front).
 alpha=0.01, tau_ref in {0,5,15}, L=64, T=300, noise ON. Run: python phase3_lagcheck.py
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from core.model import DT, I0_BASE
 from phase3_refractory import run_ref

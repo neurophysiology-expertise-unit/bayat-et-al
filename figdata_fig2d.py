@@ -4,7 +4,7 @@ Each freeze holds one ATP-dependent channel at its A=0 value; this is distinct
 from holding population heterogeneity at its mean.
 Run: python figdata_fig2d.py
 """
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from scipy.stats import spearmanr

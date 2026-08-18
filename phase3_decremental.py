@@ -12,7 +12,7 @@ t_act vs radius. TARGET: extent 2-5 cells (100-250um) AND speed ~13 um/s AND lin
 Report the full extent-vs-decay curve (monotone = mechanism works even if the window is narrow).
 Run: python phase3_decremental.py
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from numba import njit
 from core.model import (laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,

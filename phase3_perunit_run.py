@@ -8,7 +8,7 @@ tau_base) needed to compute each unit's single-unit Hopf onset. Draw order and i
 bit-matched to phase2_coupling.sweep_p2 (const path), so unit-mean activity == the aggregate A_act.
 Run: python phase3_perunit_run.py
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from numba import njit, prange
 from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED

@@ -11,7 +11,7 @@ Reports per (alpha, tau_ref): spontaneous lag-vs-distance (discriminator), focal
 speed (deterministic + noisy). 1 cell=50um, 1 model-t=1s; wave 15-28 um/s, extent 2-5 cells.
 Run: python phase3_refractory.py
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from numba import njit
 from core.model import (laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,
@@ -99,9 +99,6 @@ def lag_vs_distance(A, dtf, L):
 def focal_stats(A, dtf, um, L):
     T = A.shape[0]; c = L // 2
     act = A > 0.5
-    tact = np.full((L, L), -1)
-    for i in range(L):
-        w = np.where(act[:, i, :])  # not used; per-cell below
     tact = np.where(act.any(0), act.argmax(0), -1)
     yy, xx = np.mgrid[0:L, 0:L]
     dx = np.minimum(np.abs(xx - c), L - np.abs(xx - c)); dy = np.minimum(np.abs(yy - c), L - np.abs(yy - c))

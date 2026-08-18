@@ -19,7 +19,7 @@ A=0.40 (the value this script carried) rather than at the published A=0.27.
 
 Run: python figdata_fig1.py
 """
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from numba import njit

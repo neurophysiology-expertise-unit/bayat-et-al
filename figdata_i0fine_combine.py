@@ -7,7 +7,7 @@ error bar over the same seed set as Figs 3 and 4 (11-20), per the locked convent
 
 Run: python figdata_i0fine_combine.py
 """
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from core.provenance import save_result, load_result

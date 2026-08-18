@@ -5,7 +5,7 @@ processed_data/fig4_mechanisms_ens.npz. Prints the ensemble against the single-s
 reported (seed 11), so any divergence is visible before a figure is built.
 Run: python figdata_fig4_combine.py
 """
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import json
 import numpy as np
 from pathlib import Path

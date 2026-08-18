@@ -7,7 +7,7 @@ activate a central patch at t=0, and measure activation-time vs radius:
 Deterministic (noise off) for a clean speed, plus noisy for realism. baseline=I0_BASE, L=64,
 alpha in {0.01, 0.12}. 1 cell=50um, 1 model-t=1s; measured wave speed 15-28 um/s (0.3-0.56 cells/s).
 Run: python phase3_focal_run.py"""
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from numba import njit
 from core.model import (laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT,

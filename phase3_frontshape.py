@@ -11,7 +11,7 @@ Per gamma_regen (focal, alpha=0.01, baseline=I0_BASE, tau_ref=15s, L=64):
   (d) INITIAL speed from the first two radial bins -- what an experimental measurement captures
 Run: python phase3_frontshape.py
 """
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from scipy.optimize import curve_fit
 from core.model import DT, SIGMA_EM_PREDICTED, I0_BASE

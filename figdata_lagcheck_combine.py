@@ -8,7 +8,8 @@ The claim this supports is a negative control with TWO signatures, and the combi
 Ten seeds (11-20), mean +/- SD, matching every other ensemble in the figures.
 Run: python figdata_lagcheck_combine.py
 """
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import json
 import numpy as np
 from pathlib import Path
 from core.model import I0_BASE
@@ -47,8 +48,7 @@ def main():
     p = save_result(Path("processed_data") / "lagcheck.npz",
                     {"seeds": SEEDS, "baseline": I0_BASE, "alpha": 0.01, "L": 64, "T": 300.0,
                      "taus": taus.tolist(), "separations": ds.tolist(), "dt_frame": dtf,
-                     "resolved_rule": str(np.load(files[0], allow_pickle=True)["__params__"])[:0] or
-                                      "peakcorr>0.08 and >0.25*corr(d=1) and lag<0.95*max_lag"},
+                     "resolved_rule": json.loads(str(d0["__params__"]))["resolved_rule"]},
                     taus=taus, separations=ds, lag_frames=lag, peakcorr=corr, resolved=res,
                     lag_mean=lag.mean(0), lag_sd=lag.std(0),
                     peakcorr_mean=corr.mean(0), peakcorr_sd=corr.std(0),

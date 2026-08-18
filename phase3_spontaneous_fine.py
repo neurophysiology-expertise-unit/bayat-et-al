@@ -15,7 +15,7 @@ Two quantities are recorded per baseline and both matter:
 
 Run: python phase3_spontaneous_fine.py <seed>      (then figdata_i0fine_combine.py)
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from scipy.signal import find_peaks

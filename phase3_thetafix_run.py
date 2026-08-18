@@ -3,7 +3,7 @@ everything else following alpha. Same seeds as phase2v3_const A_full. If the hig
 A_act saturation vanishes here (A_act tracks f_det linearly to 1.11), the saturation was a
 readout artifact of the alpha-dependent threshold theta=0.5+0.7*alpha, not the dynamics.
 Run: python phase3_thetafix_run.py"""
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from phase2_coupling import ensemble_p2, ALPHAS, DT, SIGMA_EM_PREDICTED
 from core.provenance import save_result

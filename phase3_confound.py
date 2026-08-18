@@ -5,7 +5,7 @@ still rises. If A_act rises (follows the noise), f_det was a correlate; if A_act
 f_det), Hopf recruitment is causal. f_det computed INSTANTANEOUSLY (fraction with trace(a)>=0),
 valid for non-monotonic drive.
 Run: python phase3_confound.py"""
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from numba import njit, prange
 from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED

@@ -7,7 +7,7 @@ For this model I0(A)=I0_BASE+s_I A (core/model.py), so the deterministic drive e
 the single-cell equations is I0_BASE+(gamma+s_I)A.
 Run: python figdata_fig2.py
 """
-import sys; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from pathlib import Path
 from scipy.integrate import solve_ivp

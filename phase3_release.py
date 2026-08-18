@@ -14,7 +14,7 @@ Quasi-static s-ramp (mirrors the paper's alpha up-sweep); alpha_base fixed. Draw
 phase2_coupling.sweep_p2 const path so s=0 is bit-identical to it at alpha=alpha_base.
 Run: python phase3_release.py            (grid + null + s=0 check)
 """
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from numba import njit, prange
 from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED

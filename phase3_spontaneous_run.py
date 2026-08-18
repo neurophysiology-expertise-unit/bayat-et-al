@@ -4,7 +4,7 @@ thresholds and time mapping as fig_1_single_cell.py: SEC_PER_AU=1.0 (1 model uni
 PK_HEIGHT=0.5, PK_PROM=1.0, PK_DIST_AU=2.0. Records per-cell C(t), detects peaks per cell,
 reports events/min/cell. bayat-I0 at alpha=0 -> I0=baseline, no drive; L=32, a few seeds.
 Run: python phase3_spontaneous_run.py"""
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from numba import njit
 from scipy.signal import find_peaks

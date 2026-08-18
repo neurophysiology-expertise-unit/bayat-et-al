@@ -3,7 +3,7 @@ HELD: the Phase-1 sharpness rerun waits until the I0 form question is settled by
 four-variant collapse table. Kept variant-parameterized so it is correct whenever it is run.
 Same extended grid as sharp_ext_run.py so the chi_true interior check is directly comparable.
 Usage: python sharp_corr_run.py <L> <i0_form 0..3> [n_seeds]"""
-import sys, time; sys.path.insert(0, '/mnt/sysfs01/users/cagatay/code/bayat-et-al')
+import sys, time, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import numpy as np
 from phase1_finite_size import sweep_ensemble, DT, SIGMA_EM_PREDICTED
 from core.provenance import save_result
