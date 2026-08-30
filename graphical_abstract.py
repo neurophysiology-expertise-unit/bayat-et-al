@@ -68,7 +68,7 @@ def main():
     ax.set_xlabel(r"refractory $\tau_{\rm ref}$ (s)", fontsize=7.2, labelpad=1)
     ax.set_ylabel("spurious ignitions\n" + r"(10$^{3}$ cells)$^{-1}$ s$^{-1}$",
                   fontsize=7.0, labelpad=2)
-    ax.set_title("refractory state:\nno spontaneous nucleation", fontsize=7.2, pad=3)
+    ax.set_title("refractory state:\nsuppressed nucleation", fontsize=7.2, pad=3)
     ax.tick_params(labelsize=6.5, length=2.5, width=0.8, pad=1.5)
     ax.set_ylim(0, max(d4["nucleation_rate_mean"]) * 1.35)
     for s in ("top", "right"):
@@ -84,12 +84,12 @@ def main():
     ax.set_xlim(0, 1.05)
     ax.set_xlabel(r"decremental gain $\gamma_{\rm regen}$", fontsize=7.2, labelpad=1)
     ax.set_ylabel("front extent (cells)", fontsize=7.2, labelpad=2)
-    ax.set_title("decremental release:\nbounded front, same speed", fontsize=7.2, pad=3)
+    ax.set_title("decremental release:\ncontracted front extent", fontsize=7.2, pad=3)
     ax.tick_params(labelsize=6.5, length=2.5, width=0.8, pad=1.5)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
 
-    fig.text(0.5, 0.955, "Distinct mechanisms set speed, propagation and extent",
+    fig.text(0.5, 0.955, "Distinct mechanisms suppress ignition and bound extent",
              ha="center", fontsize=8.4, fontweight="bold")
 
     fig.savefig("graphical_abstract.pdf", dpi=600)
