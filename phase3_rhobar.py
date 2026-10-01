@@ -12,6 +12,7 @@ two-pass rho-bar of the manuscript Methods can be computed exactly on that sampl
 sweep_rb is a verbatim copy of sweep_p2 plus a field sample; the run reproduces the stored `active` and `R` and fails loudly if it does not.
 
 Run:  python phase3_rhobar.py            (full: 40 seeds x 21 ATP levels, L=32, ~15-20 min)
+      python phase3_rhobar.py 1 0.10       (coupling-only control at alpha_ref 0.10; also 0.90)
       python phase3_rhobar.py check      (self-check: formula vs brute force, stride 1 vs 10)
 """
 from __future__ import annotations
@@ -23,7 +24,7 @@ from numba import njit, prange
 from core.model import laplacian, DT, ETA, A_FHN, B_FHN, THETA_BASE, NOISE_MULT, SIGMA_EM_PREDICTED, I0_BASE
 from core.provenance import save_result
 
-SRC = "processed_data/phase2v1_bayat_b0.42_L32_A_full.npz"
+SRC_FULL = "processed_data/phase2v1_bayat_b0.42_L32_A_full.npz"
 STRIDE = 10   # 10 * DT = 0.034 model s between samples; single-cell dynamics evolve over ~10 s
 
 
@@ -143,11 +144,11 @@ def sweep_rb(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_fo
 
 
 @njit(parallel=True, cache=True)
-def ensemble_rb(seeds, alpha_values, steps, nx, ny, n, sigma, i0_baseline, stride):
+def ensemble_rb(seeds, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_baseline, stride):
     ns = seeds.shape[0]; na = alpha_values.shape[0]
     A = np.zeros((ns, na)); R = np.zeros((ns, na)); D = np.zeros((ns, na)); P = np.zeros((ns, na))
     for i in prange(ns):
-        a, r, d, p = sweep_rb(seeds[i], 0, alpha_values, 0.10, steps, nx, ny, n, sigma, 1, -1.0, 1.0,
+        a, r, d, p = sweep_rb(seeds[i], mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, 1, -1.0, 1.0,
                               i0_baseline, stride)
         A[i, :] = a; R[i, :] = r; D[i, :] = d; P[i, :] = p
     return A, R, D, P
@@ -173,21 +174,27 @@ def check():
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "check":
         return check()
+    # optional: <mode> <alpha_ref> to re-run a coupling-only control (mode 1 = only D_eff follows A)
+    mode = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    aref = float(sys.argv[2]) if len(sys.argv) > 2 else 0.10
+    SRC = (SRC_FULL if mode == 0 else
+           f"processed_data/phase2v1_bayat_b0.42_L32_B_coupling_aref{aref:.2f}.npz")
+    out = "rhobar_vs_atp_L32.npz" if mode == 0 else f"rhobar_vs_atp_L32_B_coupling_aref{aref:.2f}.npz"
     src = np.load(SRC, allow_pickle=True)
     import json
     pr = json.loads(str(src["__params__"]))
     L = pr["L"]; seeds = np.array(pr["seeds"]); alphas = np.asarray(src["alphas"])
     steps = pr["steps"]; sig = pr["sigma"]; i0b = pr["i0_baseline"]
-    assert pr["mode"] == 0 and pr["i0_form"] == 1
+    assert pr["mode"] == mode and pr["i0_form"] == 1 and abs(pr["alpha_ref"] - aref) < 1e-9
     t0 = time.time()
-    A, R, D, P = ensemble_rb(seeds, alphas, steps, L, L, L * L, sig, i0b, STRIDE)
+    A, R, D, P = ensemble_rb(seeds, mode, alphas, aref, steps, L, L, L * L, sig, i0b, STRIDE)
     dA = np.max(np.abs(A - src["active"])); dR = np.max(np.abs(R - src["R"]))
     print(f"reproduction vs {SRC}: max|d active| = {dA:.2e}  max|d R| = {dR:.2e}  ({time.time()-t0:.0f}s)")
     assert dA < 1e-9 and dR < 1e-9, "re-run does not reproduce the stored sweep"
     N = L * L; proxy = (N * R ** 2 - 1.0) / (N - 1.0)
     print(f"max |rho_exact - covariance proxy| = {np.max(np.abs(P - proxy)):.4f}")
-    p = save_result(Path("processed_data") / "rhobar_vs_atp_L32.npz",
-                    {"source": SRC, "L": L, "seeds": seeds.tolist(), "steps": steps, "sigma": sig,
+    p = save_result(Path("processed_data") / out,
+                    {"source": SRC, "mode": mode, "alpha_ref": aref, "L": L, "seeds": seeds.tolist(), "steps": steps, "sigma": sig,
                      "i0_baseline": i0b, "stride": STRIDE, "alphas": alphas.tolist(),
                      "definition": "mean pairwise Pearson correlation of z-scored C over the post-burn-in window, "
                                    "every STRIDE-th step"},
