@@ -9,8 +9,7 @@ two-pass rho-bar of the manuscript Methods can be computed exactly on that sampl
 
     rho_bar = [ (1/T) sum_t (sum_i z_i(t))^2 - N ] / (N (N - 1))
 
-sweep_rb is sweep_p2 restricted to mode 0 / i0_form 1, with the same RNG consumption and
-arithmetic; the run reproduces the stored `active` and `R` and fails loudly if it does not.
+sweep_rb is a verbatim copy of sweep_p2 plus a field sample; the run reproduces the stored `active` and `R` and fails loudly if it does not.
 
 Run:  python phase3_rhobar.py            (full: 40 seeds x 21 ATP levels, L=32, ~15-20 min)
       python phase3_rhobar.py check      (self-check: formula vs brute force, stride 1 vs 10)
@@ -49,37 +48,67 @@ def rho_exact(Z):
 
 
 @njit(fastmath=True, cache=True)
-def sweep_rb(seed, alpha_values, steps, nx, ny, n, sigma, i0_baseline, stride):
+def sweep_rb(seed, mode, alpha_values, alpha_ref, steps, nx, ny, n, sigma, i0_form, theta_ovr,
+             kappa_scale, i0_baseline, stride):
+    # verbatim copy of phase2_coupling.sweep_p2 plus the field sample; any other edit changes the
+    # fastmath code generation and the trajectory diverges from the stored sweep
+    rho = np.zeros(alpha_values.shape[0])
     np.random.seed(seed)
     na = alpha_values.shape[0]
-    act = np.zeros(na); Rsync = np.zeros(na); dmean = np.zeros(na); rho = np.zeros(na)
+    act = np.zeros(na)
+    Rsync = np.zeros(na)
+    dmean = np.zeros(na)
     gamma_base = (np.random.uniform(0.05, 0.34, (nx, ny))
                   * (1.0 + 2.0 * np.random.standard_normal((nx, ny))))
-    I0_base = np.random.uniform(0.1, 0.5, (nx, ny))
+    # I0_base range is variant-dependent; uniform(lo,hi) consumes one draw/cell either way,
+    # so the RNG stream position (and every subsequent base array) is identical across variants.
+    if i0_form == 1:
+        I0_base = np.random.uniform(0.1, 0.5, (nx, ny))    # Bayat's proposed correction
+    else:
+        I0_base = np.random.uniform(0.01, 0.15, (nx, ny))  # submitted / bounded / const
     tau_base = np.random.uniform(0.5, 1.1, (nx, ny))
     D0_base = np.random.uniform(0.05, 0.5, (nx, ny))
-    kappa_base = np.random.uniform(1.0, 4.0, (nx, ny)) * 1.0
+    kappa_base = np.random.uniform(1.0, 4.0, (nx, ny)) * kappa_scale  # scale AFTER draw: RNG stream preserved
     C = np.random.uniform(-0.1, 0.3, (nx, ny))
     h = np.random.uniform(0.4, 1.2, (nx, ny))
     t_start = int(0.3 * steps)
-    sqrt_dt = DT ** 0.5
     nsamp = (steps - t_start + stride - 1) // stride
     buf = np.zeros((nsamp, n))
+    sqrt_dt = DT ** 0.5
 
     for idx in range(na):
         alpha = alpha_values[idx]
-        aD = alpha; aT = alpha; aO = alpha
+        # effective alphas per channel group:
+        aD = alpha                                     # D_eff always follows alpha
+        aT = alpha if (mode == 0 or mode == 2) else alpha_ref   # theta: A and B' follow alpha
+        if theta_ovr >= 0.0:                                     # Phase 3.1 readout test: freeze theta
+            aT = theta_ovr
+        aO = alpha if mode == 0 else alpha_ref         # other channels: only A follows alpha
+
         gamma = gamma_base
-        I0 = i0_baseline + aO * I0_base
+        # I0 variants (new_plan.md 2026-08-11 robustness table); aO = alpha (A) or alpha_ref (B/B')
+        if i0_form == 0:
+            I0 = 0.05 + (1.0 / np.sqrt(aO)) * I0_base    # 0 submitted (1/sqrt sign error)
+        elif i0_form == 1:
+            base = i0_baseline if i0_baseline >= 0.0 else 0.2   # swept baseline excitability (test 2026-08-12)
+            I0 = base + aO * I0_base                       # 1 Bayat's proposed (I0_base=U(0.1,0.5))
+        elif i0_form == 2:
+            I0 = 0.05 + I0_base * (1.0 + np.sqrt(aO))     # 2 bounded, preserves a=0 heterogeneity
+        else:
+            I0 = 0.05 + I0_base                           # 3 constant, ATP-independent control
         tau_h = 10.0 / ((1.0 + 0.8 * aO) * tau_base)
         Deff = D0_base / (1.0 + (kappa_base * aD) ** 4)
         theta = THETA_BASE + 0.7 * aT
         sigma_eff = sigma * (1.0 + 4.0 * aO)
-        gdrive = gamma * aO
+        gdrive = gamma * aO                             # gamma*alpha excitability term
 
-        asum = 0.0; msum = 0.0; msum2 = 0.0
-        csum = np.zeros(n); csum2 = np.zeros(n)
-        cnt = 0; k = 0
+        asum = 0.0
+        msum = 0.0
+        msum2 = 0.0
+        csum = np.zeros(n)
+        csum2 = np.zeros(n)
+        cnt = 0
+        k = 0
         for t in range(steps):
             noise = sigma_eff * NOISE_MULT * np.random.standard_normal((nx, ny))
             C_active = 0.5 * (1.0 + np.tanh(ETA * (C - theta)))
@@ -112,12 +141,14 @@ def sweep_rb(seed, alpha_values, steps, nx, ny, n, sigma, i0_baseline, stride):
     return act, Rsync, dmean, rho
 
 
+
 @njit(parallel=True, cache=True)
 def ensemble_rb(seeds, alpha_values, steps, nx, ny, n, sigma, i0_baseline, stride):
     ns = seeds.shape[0]; na = alpha_values.shape[0]
     A = np.zeros((ns, na)); R = np.zeros((ns, na)); D = np.zeros((ns, na)); P = np.zeros((ns, na))
     for i in prange(ns):
-        a, r, d, p = sweep_rb(seeds[i], alpha_values, steps, nx, ny, n, sigma, i0_baseline, stride)
+        a, r, d, p = sweep_rb(seeds[i], 0, alpha_values, 0.10, steps, nx, ny, n, sigma, 1, -1.0, 1.0,
+                              i0_baseline, stride)
         A[i, :] = a; R[i, :] = r; D[i, :] = d; P[i, :] = p
     return A, R, D, P
 
@@ -132,8 +163,8 @@ def check():
     assert abs(rho_exact(Z) - cc[np.triu_indices(39, 1)].mean()) < 1e-12
     # sampling: stride 10 vs stride 1 on one seed, three ATP levels, short run
     al = np.array([0.065, 0.56, 1.11]); steps = int(60.0 / DT)
-    r1 = sweep_rb(11, al, steps, 32, 32, 1024, SIGMA_EM_PREDICTED, I0_BASE, 1)[3]
-    r10 = sweep_rb(11, al, steps, 32, 32, 1024, SIGMA_EM_PREDICTED, I0_BASE, STRIDE)[3]
+    r1 = sweep_rb(11, 0, al, 0.10, steps, 32, 32, 1024, SIGMA_EM_PREDICTED, 1, -1.0, 1.0, I0_BASE, 1)[3]
+    r10 = sweep_rb(11, 0, al, 0.10, steps, 32, 32, 1024, SIGMA_EM_PREDICTED, 1, -1.0, 1.0, I0_BASE, STRIDE)[3]
     print("stride 1 :", np.round(r1, 5)); print("stride 10:", np.round(r10, 5))
     assert np.max(np.abs(r1 - r10)) < 2e-3, np.abs(r1 - r10)
     print("check ok")
