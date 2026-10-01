@@ -12,8 +12,8 @@ Figure 2 -- ATP sets network activity through single-unit excitability.
 (E) Leave-one-ATP-channel-out test: recruitment with each ATP-dependent channel held
     at its A=0 value.
 
-All panels read provenance-stamped npz files written by figdata_fig2.py and
-figdata_fig2d.py -- no panel is built from a log.
+All panels read provenance-stamped npz files written by figdata_fig2.py,
+figdata_fig2d.py and phase3_rhobar.py (panel F) -- no panel is built from a log.
 """
 import numpy as np
 import matplotlib
@@ -33,6 +33,8 @@ apply_style()
 
 d2 = np.load("processed_data/fig2_excitability.npz", allow_pickle=True)
 d2d = np.load("processed_data/fig2d_gamma_freeze.npz", allow_pickle=True)
+rb = {k: np.load(f"processed_data/rhobar_vs_atp_L32{suf}.npz", allow_pickle=True)          # phase3_rhobar.py
+      for k, suf in (("full", ""), ("B010", "_B_coupling_aref0.10"), ("B090", "_B_coupling_aref0.90"))}
 
 adia, Cstar, stab = d2["adia"], d2["Cstar"], d2["stab"].astype(bool)
 cmin, cmax, per, re = d2["cmin"], d2["cmax"], d2["period"], d2["re"]
@@ -102,7 +104,7 @@ axC.text(0.04, 0.60, f"Spearman $\\rho$ = {spear:.3f}\nPearson $r$ = {pear:.3f}"
 clean_spines(axC); panel_label(axC, "C")
 
 # ---------------------------------------------------------------- (D) onset distribution
-axD = fig.add_subplot(gs[1, 0:3])
+axD = fig.add_subplot(gs[1, 0:2])
 fin = np.isfinite(onset)
 axD.axvspan(0, WINDOW, color="0.85", alpha=0.55, lw=0, zorder=0)
 axD.hist(onset[fin], bins=np.linspace(0, 3, 121), color=COL_FP, alpha=0.85, lw=0)
@@ -122,7 +124,7 @@ axD.text(0.5 * WINDOW / 3.0, 0.965, "ATP window", transform=axD.transAxes,
 clean_spines(axD); panel_label(axD, "D", dx=-0.055)
 
 # ---------------------------------------------------------------- (E) freeze test
-axE = fig.add_subplot(gs[1, 3:6])
+axE = fig.add_subplot(gs[1, 2:4])
 lab = {"gamma": r"freeze $\gamma(A)$", "tau_base": r"freeze $\tau_h(A)$",
        "I0_slope": r"freeze $I_0(A)$"}
 names = ["baseline"] + fnames
@@ -134,16 +136,30 @@ axE.bar(xs, 100 * vals, yerr=100 * se, color=cols, width=0.62, capsize=3,
         error_kw=dict(elinewidth=0.9))
 axE.axhline(100 * base_rec, color="0.4", ls=":", lw=1.0)
 axE.set_xticks(xs)
-axE.set_xticklabels(["baseline"] + [lab[n] for n in fnames], fontsize=7.6)
+axE.set_xticklabels(["baseline"] + [lab[n] for n in fnames], fontsize=7.0, rotation=20, ha="right")
 axE.set_ylabel("recruited inside window (%)")
-axE.set_ylim(0, max(80, 115 * vals.max()))
+axE.set_ylim(0, max(95, 130 * vals.max()))
 for x, v in zip(xs, vals):
     axE.text(x, 100 * v + 0.6, f"{100*v:.2f}", ha="center", fontsize=6.8, color="0.2")
-axE.text(0.02, 0.90, "Spearman(onset, parameter):  "
+axE.text(0.02, 0.97, "Spearman(onset, parameter):  "
                      rf"$\gamma$ {srho['gamma']:+.2f},  $\tau_h$ {srho['tau_base']:+.2f},  "
                      rf"$I_0$ slope {srho['I0_slope']:+.2f}",
-         transform=axE.transAxes, fontsize=6.8, color="0.25")
+         transform=axE.transAxes, fontsize=6.0, color="0.25")
 clean_spines(axE); panel_label(axE, "E", dx=-0.055)
+
+# ---------------------------------------------------------------- (F) coordination
+axF = fig.add_subplot(gs[1, 4:6])
+for k, col, ls, lb in (("full", COL_SIM, "-", "full ATP"),
+                       ("B010", COL_FP, "--", r"coupling only, $A_{\rm ref}=0.10$"),
+                       ("B090", COL_LC, ":", r"coupling only, $A_{\rm ref}=0.90$")):
+    P = rb[k]["rhobar"]; a = rb[k]["alphas"]
+    axF.errorbar(a, P.mean(0), yerr=P.std(0), fmt=ls, color=col, ecolor=col, lw=1.5,
+                 elinewidth=0.8, capsize=1.5, label=lb)
+axF.axhline(0, color="0.6", lw=0.7)
+axF.set_xlabel("ATP level $A$"); axF.set_ylabel(r"mean pairwise correlation $\bar\rho$")
+axF.set_xlim(0, WINDOW)
+axF.legend(fontsize=6.2, loc="upper right", handlelength=1.8)
+clean_spines(axF); panel_label(axF, "F", dx=-0.055)
 
 save_fig(fig, "Figure_2")
 print("wrote Figure_2.pdf / Figure_2.png")
