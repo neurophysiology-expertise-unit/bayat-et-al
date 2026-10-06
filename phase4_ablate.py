@@ -57,6 +57,9 @@ def sweep_c(seed, alpha_values, fix_D, a_D, d_mult, steps, nx, ny, n, sigma, i0_
     kappa_base = np.random.uniform(1.0, 4.0, (nx, ny))
     C = np.random.uniform(-0.1, 0.3, (nx, ny))
     h = np.random.uniform(0.4, 1.2, (nx, ny))
+    gamma_eff = gamma_base.copy()
+    if uni_gamma:
+        gamma_eff[:] = np.mean(gamma_base)
     t_start = int(0.3 * steps)
     sqrt_dt = DT ** 0.5
     nsamp = (steps - t_start + stride - 1) // stride
@@ -69,7 +72,7 @@ def sweep_c(seed, alpha_values, fix_D, a_D, d_mult, steps, nx, ny, n, sigma, i0_
         Deff = d_mult * D0_base / (1.0 + (kappa_base * aD) ** 4)
         theta = THETA_BASE + 0.7 * (a_D if fix_theta else alpha)
         sigma_eff = sigma * (1.0 + 4.0 * (a_D if fix_noise else alpha))
-        gdrive = (np.mean(gamma_base) if uni_gamma else gamma_base) * alpha
+        gdrive = gamma_eff * alpha
         asum = 0.0; cnt = 0; k = 0
         for t in range(steps):
             noise = sigma_eff * NOISE_MULT * np.random.standard_normal((nx, ny))
