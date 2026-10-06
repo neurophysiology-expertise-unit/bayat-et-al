@@ -109,6 +109,19 @@ def psth(recs):
     return edges, H
 
 
+def early(recs, step=2.0, tmax=30.0):
+    """Excess events per recording per bin in the first tmax s, baseline rate subtracted (added after the
+    pre-registered run, to resolve a fast front that 10 s bins would hide)."""
+    edges = np.arange(0, tmax + step, step)
+    E = np.zeros((len(BANDS), len(edges) - 1))
+    for j, (a, b) in enumerate(BANDS):
+        for r in recs:
+            m = (r["d"] >= a) & (r["d"] < b)
+            E[j] += np.histogram(r["t"][m], edges)[0] - np.sum(m & (r["t"] < 0)) / r["pre"] * step
+        E[j] /= len(recs)
+    return edges, E
+
+
 def boot(f, n, B=2000):
     vals = np.array([f(rng.integers(0, n, n)) for _ in range(B)])
     return np.nanpercentile(vals, [2.5, 97.5], axis=0)
@@ -126,17 +139,19 @@ def main():
             lat_ci = boot(lambda ix: latency(recs, ix), len(recs), 500)
             exc_ci = boot(lambda ix: exc[ix].mean(0), len(recs))
             edges, H = psth(recs)
+            eedges, E = early(recs)
             key = f"{cond}_{nt}"
             res[key] = dict(n=len(recs), exc=exc.mean(0), exc_ci=exc_ci, lat=lat, lat_ci=lat_ci,
                             pre=pre.mean(0))
             arrays.update({f"{key}_exc": exc, f"{key}_pre": pre, f"{key}_post": post,
-                           f"{key}_lat": lat, f"{key}_latci": lat_ci, f"{key}_psth": H})
+                           f"{key}_lat": lat, f"{key}_latci": lat_ci, f"{key}_psth": H, f"{key}_early": E,
+                           f"{key}_excci": exc_ci})
             print(f"{key:20s} n={len(recs):3d}")
             for j, (a, b) in enumerate(BANDS):
                 print(f"   {a:3d}-{b:3d} um  pre {pre[:, j].mean():5.2f}/min  excess {exc[:, j].mean():+6.2f} "
                       f"[{exc_ci[0, j]:+.2f},{exc_ci[1, j]:+.2f}]  half-rise {lat[j]:5.0f} s "
                       f"[{lat_ci[0, j]:.0f},{lat_ci[1, j]:.0f}]")
-    arrays["psth_edges"] = edges; arrays["bands"] = np.array(BANDS)
+    arrays["early_edges"] = eedges; arrays["psth_edges"] = edges; arrays["bands"] = np.array(BANDS)
     p = save_result(Path("processed_data") / "cahill2024_uncaging_tests.npz",
                     {"source": "Cahill et al. 2024, Dryad 10.5061/dryad.83bk3jb0j events.zip+ramping.zip",
                      "bands_um": BANDS, "uncage_frames": [U0, U1], "lat_window_s": LAT_WIN,
