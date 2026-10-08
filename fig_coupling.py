@@ -87,7 +87,7 @@ for ax in (axC, axD):
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_xticks([0.025, 0.05, 0.1, 0.2, 0.5, 1.0]); ax.set_xticklabels(["0.025", "0.05", "0.1", "0.2", "0.5", "1"])
     ax.minorticks_off()
-    ax.set_xlabel(r"release gain $\gamma_{\rm regen}$")
+    ax.set_xlabel(r"regeneration factor $\gamma_{\rm regen}$")
 axC.set_yticks([100, 250, 500, 1000]); axC.set_yticklabels(["100", "250", "500", "1000"])
 axD.set_yticks([2, 5, 15, 50, 120]); axD.set_yticklabels(["2", "5", "15", "50", "120"])
 axD.set_ylim(1.5, 200)

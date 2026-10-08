@@ -82,7 +82,7 @@ def main():
                 color=COL_DET, ecolor=COL_DET, ms=2.6, lw=1.3, elinewidth=0.8, capsize=2)
     ax.text(0.36, 0.09, "reported extent", transform=ax.transAxes, fontsize=6.2, color=COL_HL)
     ax.set_xlim(0, 1.05)
-    ax.set_xlabel(r"decremental gain $\gamma_{\rm regen}$", fontsize=7.2, labelpad=1)
+    ax.set_xlabel(r"regeneration factor $\gamma_{\rm regen}$", fontsize=7.2, labelpad=1)
     ax.set_ylabel("front extent (cells)", fontsize=7.2, labelpad=2)
     ax.set_title("decremental release:\ncontracted front extent", fontsize=7.2, pad=3)
     ax.tick_params(labelsize=6.5, length=2.5, width=0.8, pad=1.5)
