@@ -8,6 +8,8 @@ module and core/model.py (laplacian + constants) and can move to their own repo 
   draw      = paperC_mechanism.draw (run_drm's parameter draws, same order), verbatim
   run_gen   = paperC_mechanism.run_gen (run_drm's loop with per-cell arrays, noise off), verbatim
   hom_params= paperC_mechanism.hom_params (every per-cell parameter at its ensemble mean), verbatim
+  focal_lin = phase3_decremental.focal_lin, verbatim except its module constant UM (= 50 there) is named UM_DR
+  one       = phase4_front_coupling.one (extent, t99, speed, R^2 of one focal run), verbatim
 The decremental constants are copied as literals from phase3_decremental (C_DOWN, K_REF, SCALE, G_FLOOR).
 
 numba fastmath copies can diverge from the original (vault memory 'numba fastmath copy diverges'), so
@@ -160,6 +162,49 @@ def run_gen(I0, tau_h, Deff, gdrive, theta, seedmask, gamma_regen, tau_ref, step
     return fld, t_rise, g_rise, cin_rise, peak
 
 
+UM_DR = 50.0   # phase3_decremental.UM, used by focal_lin (one() rescales its speed by UM / 50)
+
+
+def focal_lin(fld, dtf, L, patch):
+    """extent(cells), speed(um/s), linearity R^2 of t_act vs radius, excluding the seed patch."""
+    T = fld.shape[0]; c = L // 2
+    act = fld > 0.5
+    tact = np.where(act.any(0), act.argmax(0), -1)
+    yy, xx = np.mgrid[0:L, 0:L]
+    dx = np.minimum(np.abs(xx - c), L - np.abs(xx - c)); dy = np.minimum(np.abs(yy - c), L - np.abs(yy - c))
+    r = np.sqrt(dx ** 2 + dy ** 2)
+    reached = (tact >= 0) & (r > patch)                      # exclude seeded patch
+    if reached.sum() < 6:
+        return float(patch), np.nan, np.nan, reached.mean()
+    extent = float(r[reached].max())
+    rr = r[reached]; tt = tact[reached].astype(float) * dtf
+    band = rr <= extent                                       # whole propagated region
+    speed = np.nan; r2 = np.nan
+    if band.sum() > 6 and np.ptp(tt[band]) > 1e-6 and np.ptp(rr[band]) > 0.5:
+        m, b0 = np.polyfit(rr[band], tt[band], 1)             # t_act vs radius
+        yh = m * rr[band] + b0
+        r2 = 1.0 - np.sum((tt[band] - yh) ** 2) / (np.sum((tt[band] - tt[band].mean()) ** 2) + 1e-12)
+        if m > 1e-6:
+            speed = (1.0 / m) * UM_DR
+    return extent, speed, r2, reached.mean()
+
+
+def one(args):
+    m, gr, seed = args
+    f = run_drm(seed, ALPHA, I0_BASE, gr, TAU_REF, False, int(T_WIN / DT), L, L, SIGMA_EM_PREDICTED,
+                STRIDE, PATCH, m)
+    c = L // 2; yy, xx = np.mgrid[0:L, 0:L]
+    dx = np.minimum(abs(xx - c), L - abs(xx - c)); dy = np.minimum(abs(yy - c), L - abs(yy - c))
+    r = np.sqrt(dx ** 2 + dy ** 2)
+    cum = np.zeros((L, L), bool); ext = []
+    for t in range(f.shape[0]):
+        cum |= f[t] > 0.5; mm = cum & (r > PATCH); ext.append(r[mm].max() if mm.any() else 0.0)
+    ext = np.array(ext); final = ext[-1]
+    t99 = float(np.argmax(ext >= 0.99 * final) * dtf)
+    e2, sp, r2, frac = focal_lin(f, dtf, L, PATCH)
+    return m, gr, seed, final, t99, sp * UM / 50.0 if np.isfinite(sp) else np.nan, r2
+
+
 def hom_params(shape, d_mult):
     """every per-cell parameter replaced by its ensemble mean (numerical mean over 2e6 draws, fixed seed)."""
     rng = np.random.default_rng(0); n = 2_000_000
@@ -198,6 +243,10 @@ def check():
                 I0, th, De, gd, _ = draw(s, ALPHA, I0_BASE, L, L, d)
                 sm = np.zeros((L, L), np.bool_); c = L // 2; sm[c - PATCH:c + PATCH + 1, c - PATCH:c + PATCH + 1] = True
                 assert np.array_equal(f, run_gen(I0, th, De, gd, THETA, sm, gr, TAU_REF, STEPS, STRIDE)[0]), "M0"
+    r = one((4.0, 0.075, 12))                # full one(): extent, t99, speed, R^2 as stored
+    i, j, k = dm.index(4.0), gm.index(0.075), sd.index(12)
+    for got, key in zip(r[3:], ("extent", "stop_time", "speed", "r2")):
+        assert np.array_equal(np.array(got), pm[key][i, j, k], equal_nan=True), ("one()", key, got)
     mc = np.load(HERE / "processed_data" / "paperC_mechanism.npz")
     dh, gh = list(mc["d_hom"]), list(mc["gammas"])
     for d, gr in [(4.0, 1.0), (5.0, 0.1)]:
@@ -207,7 +256,7 @@ def check():
         e, t = extent_t99(f, L)   # centre-based radius = paperC_mechanism.front_stats for a centred square patch
         ref = mc["hom2d"][dh.index(d), gh.index(gr)]
         assert e == ref[0] and t == ref[1], ("run_gen hom", d, gr, e, t, ref)
-    print("paperC_model reproduces stored results (phase_map 6 runs, M0 field, hom2d 2 runs)", flush=True)
+    print("paperC_model reproduces stored results (phase_map 6 runs + one() speed/R^2, M0 field, hom2d 2 runs)", flush=True)
 
 
 if __name__ == "__main__":
