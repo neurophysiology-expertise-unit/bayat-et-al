@@ -13,7 +13,7 @@ Files: constrain_map_dmult{0.25,0.5,2,4}_L32 (phase4_constrain.ensemble_c),
 
 Run: python -s rerun_s15_clean.py   (refuses to start on a dirty tree)
 """
-import sys, json, time, pathlib
+import sys, json, time, subprocess, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from pathlib import Path
 import numpy as np
@@ -32,12 +32,23 @@ def check_and_save(name, params, arrays):
     assert stored == json.loads(json.dumps(params, sort_keys=True, default=str)), f"{name}: params differ"
     save_result(PD / name, params, **arrays)
     print(f"{name}: identical, re-stamped {git_commit()}", flush=True)
+    # commit at once so the NEXT file is stamped on a clean tree (the first run overwrote in place and
+    # stamped everything after the first file -dirty)
+    subprocess.run(["git", "add", str(PD / name)], check=True)
+    subprocess.run(["git", "commit", "-q", "-m", f"S15: {name} re-stamped clean (arrays bit-identical)\n\n"
+                    "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"], check=True)
+
+
+def is_clean(name):
+    return not str(np.load(PD / name)["__git_commit__"]).endswith("-dirty")
 
 
 def main():
     assert not git_commit().endswith("-dirty"), "tree is dirty; commit first"
     for m in (0.25, 0.5, 2.0, 4.0):
         name = f"constrain_map_dmult{m:g}_L32.npz"
+        if is_clean(name):
+            continue
         p = json.loads(str(np.load(PD / name)["__params__"]))
         t0 = time.time()
         A, P, D = pc.ensemble_c(np.array(p["seeds"]), pc.ALPHAS, p["fix_D"], p["a_D"], p["d_mult"],
@@ -47,6 +58,8 @@ def main():
         check_and_save(name, p, dict(alphas=pc.ALPHAS, active=A, rhobar=P, Deff=D))
     for tag in ("gamma", "theta", "all3"):
         name = f"ablate_{tag}_L32.npz"
+        if is_clean(name):
+            continue
         p = json.loads(str(np.load(PD / name)["__params__"]))
         t0 = time.time()
         A, P, D = pa.ensemble_c(np.array(p["seeds"]), pa.ALPHAS, p["fix_D"], p["a_D"], p["d_mult"],
@@ -56,6 +69,8 @@ def main():
         check_and_save(name, p, dict(alphas=pa.ALPHAS, active=A, rhobar=P, Deff=D))
     for aref in (0.10, 0.90):
         name = f"rhobar_vs_atp_L32_B_coupling_aref{aref:.2f}.npz"
+        if is_clean(name):
+            continue
         z = np.load(PD / name); p = json.loads(str(z["__params__"]))
         alphas = np.asarray(z["alphas"]); L = p["L"]
         t0 = time.time()
