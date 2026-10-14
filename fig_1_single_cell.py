@@ -28,7 +28,8 @@ from matplotlib.patches import Circle, FancyArrowPatch
 from plotstyle import apply_style, clean_spines, save_fig
 
 COND_LABELS = ["Low ATP", "Intermediate ATP", "High ATP"]
-COND_SUBTITLE = ["noise-driven excitable", "oscillation onset", "irregular high-frequency"]
+COND_SUBTITLE = ["intermittent, noise-triggered", "just below onset, more regular",
+                 "self-sustained oscillation, most regular"]
 
 # ============================================================
 # COUPLING SCHEMATIC
