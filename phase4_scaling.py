@@ -136,7 +136,7 @@ def main():
                  "PATCH": PATCH, "saturation": f">= {SAT} x gamma=1 mean", "tol": TOL,
                  "preregistered": "phase4_scaling.py docstring", "summary": out},
                 mults=mults, gammas=gammas, measured_mean=mean, measured_sd=sd, bounded=ok, law=pred_all,
-                params=np.array([p, q, s]), gamma_c=np.array([gamma_c(m, p, q) for m in mults]),
+                fit_params=np.array([p, q, s]), gamma_c=np.array([gamma_c(m, p, q) for m in mults]),
                 fig4_gammas=g4, fig4_mean=m4, fig4_law=law(g4, 1.0, p, q, s))
 
 
