@@ -102,12 +102,6 @@ axD.set_xticks(x); axD.set_xticklabels(groups, fontsize=7.6)
 axD.set_ylabel("across-seed CV (%)")
 axD.set_ylim(0, 27)
 axD.legend(fontsize=7, loc="upper left", handlelength=1.4)
-# derived from the same arrays the bars use, so it cannot go stale against the data
-axD.text(0.035, 0.63, f"a quantity measured to {vals_d[2]:.1f}%\n"
-                      f"in one condition and {vals_n[2]:.1f}%\n"
-                      "in the other is not the\nsame quantity",
-         transform=axD.transAxes, fontsize=6.8, color="0.3", ha="left", va="top",
-         style="italic")
 clean_spines(axD); panel_label(axD, "D", dx=-0.055)
 
 # ---------------------------------------------------------------- (E) spontaneous control
@@ -118,18 +112,18 @@ axE.axhline(0.121, color=COL_HL, lw=1.0, ls="-")
 axE.text(0.492, 0.248, "somatic, in vivo (Hirase et al.)", fontsize=6.6, color=COL_HL,
          ha="right")
 axE.axhline(0.65, color="0.45", lw=1.0, ls="--")
-axE.text(0.492, 0.672, "astrocytic processes (Stobart et al.)", fontsize=6.6, color="0.45",
-         ha="right")
+axE.text(0.343, 0.672, "astrocytic processes (Stobart et al.)", fontsize=6.6, color="0.45",
+         ha="left")
 axE.errorbar(b, rm, yerr=rs, fmt="-o", color=COL_SIM, ecolor=COL_SIM, ms=4.2, lw=1.6,
              elinewidth=1.0, capsize=3)
 axE.axvline(0.42, color="k", lw=1.0, ls=":")
-axE.text(0.422, 0.735, "selected", fontsize=6.6, color="k", ha="left", va="top")
+axE.text(0.422, 1.04, "selected", fontsize=6.6, color="k", ha="left", va="top")
 axE.set_xlabel(r"baseline excitability $I_0^{\rm base}$")
 axE.set_ylabel(r"transients min$^{-1}$ per cell")
 axE.set_xlim(0.34, 0.505); axE.set_ylim(-0.05, 1.06)
 # NOT "silent": the zero is the peak detector returning no events, while the detector-free
 # occupancy of Phi(C) rises smoothly across this whole range (see Methods, third caveat).
-axE.text(0.36, 0.035, "no detected transients", fontsize=7, color="0.3", ha="center",
+axE.text(0.3415, 0.035, "none detected", fontsize=6.6, color="0.3", ha="left",
          clip_on=True)
 clean_spines(axE); panel_label(axE, "E", dx=-0.055)
 
