@@ -36,6 +36,13 @@ A failed Q is reported as failed; the law is then not claimed in the paper.
 Disclosure: the d_mult = 2, 4 extents were plotted in Fig. coupling C and seen by the authors before this test;
 the functional form above was derived from the update rule, not fitted to them. phase4_front_coupling.py's docstring
 already expected the bounding gamma interval to shift ~1/d_mult (qualitative); this test makes it quantitative.
+POST-HOC NOTE (2026-10-17, after running; does not change any computed value): Q4 is NOT an independent replication.
+fig4_mechanisms_ens.npz and front_vs_coupling.npz at d_mult = 1 are deterministic runs with the same seeds and code,
+so every shared gamma (1.0, 0.5, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05) reproduces identical extents (max abs difference 0).
+The only gamma in fig4 that is new to the fit and not saturated is 0.4: the law predicts unbounded propagation there
+(gamma_c = 0.333), measured 27.6 +- 4.4 cells (below the 0.9 x reference saturation cut of 30.7). Q4's "PASS" should be
+read as a consistency check, not an out-of-sample test; the evidence for the law is the d_mult = 1 fit (Q1) and
+gamma_c falling in the measured collapse (0.3-0.4), which the clip argument in the manuscript places at 0.30 a priori.
 Run: python phase4_scaling.py
 """
 import sys, json, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
