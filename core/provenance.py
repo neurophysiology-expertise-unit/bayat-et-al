@@ -21,18 +21,21 @@ import numpy as np
 
 
 def git_commit(repo_root=None):
-    """Full commit hash of the working tree, with a '-dirty' suffix if there are
-    uncommitted changes. Returns 'unknown' rather than raising if git is unavailable —
-    a missing hash must not silently look like a clean one, so it is made explicit."""
+    """Full commit hash, suffixed ``-dirty`` for tracked *or untracked* changes.
+
+    Untracked source files matter: a result must not claim a clean commit when the
+    script that produced it is absent from that commit. Ignored runtime artifacts
+    remain excluded by Git's normal status rules.
+    """
     root = Path(repo_root) if repo_root else Path(__file__).resolve().parent.parent
     try:
         h = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"],
                                     stderr=subprocess.DEVNULL).decode().strip()
-        dirty = subprocess.call(["git", "-C", str(root), "diff", "--quiet"],
-                                stderr=subprocess.DEVNULL) != 0
-        staged = subprocess.call(["git", "-C", str(root), "diff", "--cached", "--quiet"],
-                                 stderr=subprocess.DEVNULL) != 0
-        return h + ("-dirty" if (dirty or staged) else "")
+        status = subprocess.check_output(
+            ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=normal"],
+            stderr=subprocess.DEVNULL,
+        )
+        return h + ("-dirty" if status else "")
     except Exception:
         return "unknown"
 

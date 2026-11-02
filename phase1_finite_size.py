@@ -45,12 +45,16 @@ NARROW_ALPHAS = np.concatenate([np.linspace(0.05, 0.35, 14), np.array([0.6, 0.9,
 
 
 @njit(fastmath=True, cache=True)
-def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref, legacy):
+def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref, legacy, i0_form):
     """One quasi-static ATP up-sweep; returns (Sc, chi, Rsync) per alpha.
 
     Faithful to fig_3_criticality_ci.run_one_seed_core; see module docstring.
-    i0_ref <= 0 -> I0 = 0.05 + (1/sqrt(alpha))*I0_base (original, alpha-dependent).
-    i0_ref finite -> I0 held at that alpha (I0-independent condition).
+    i0_ref <= 0 -> I0 varies with alpha; i0_ref finite -> I0 held at that alpha.
+    i0_form (new_plan.md 2026-08-11 robustness table; a = the I0 alpha, I0_base per variant):
+      0 submitted  I0 = 0.05 + I0_base/sqrt(a)      I0_base=U(0.01,0.15)  (1/sqrt sign error)
+      1 bayat      I0 = 0.2  + a*I0_base            I0_base=U(0.1,0.5)
+      2 bounded    I0 = 0.05 + I0_base*(1+sqrt(a))  I0_base=U(0.01,0.15)
+      3 const      I0 = 0.05 + I0_base              I0_base=U(0.01,0.15)  (ATP-independent)
     """
     np.random.seed(seed)
     na = alpha_values.shape[0]
@@ -61,7 +65,12 @@ def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref,
 
     gamma_base = (np.random.uniform(0.05, 0.34, (nx, ny))
                   * (1.0 + 2.0 * np.random.standard_normal((nx, ny))))
-    I0_base = np.random.uniform(0.01, 0.15, (nx, ny))
+    # variant 1 (bayat) uses a wider I0_base; uniform() consumes one draw/cell either way, so the
+    # RNG stream (and every subsequent base array) stays identical across variants.
+    if i0_form == 1:
+        I0_base = np.random.uniform(0.1, 0.5, (nx, ny))
+    else:
+        I0_base = np.random.uniform(0.01, 0.15, (nx, ny))
     tau_base = np.random.uniform(0.5, 1.1, (nx, ny))
     D0_base = np.random.uniform(0.05, 0.5, (nx, ny))
     kappa_base = np.random.uniform(1.0, 4.0, (nx, ny))
@@ -75,7 +84,14 @@ def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref,
         alpha = alpha_values[idx]
         a_i0 = alpha if i0_ref <= 0.0 else i0_ref   # i0_ref<=0 sentinel (np.isnan unsafe under fastmath)
         gamma = gamma_base.copy()
-        I0 = 0.05 + (1.0 / np.sqrt(a_i0)) * I0_base
+        if i0_form == 0:
+            I0 = 0.05 + (1.0 / np.sqrt(a_i0)) * I0_base   # 0 submitted (sign error)
+        elif i0_form == 1:
+            I0 = 0.2 + a_i0 * I0_base                      # 1 Bayat's proposed
+        elif i0_form == 2:
+            I0 = 0.05 + I0_base * (1.0 + np.sqrt(a_i0))    # 2 bounded
+        else:
+            I0 = 0.05 + I0_base                            # 3 constant, ATP-independent
         tau_h = 10.0 / ((1.0 + 0.8 * alpha) * tau_base)
         D0 = D0_base.copy()
         kappa = kappa_base.copy()
@@ -141,7 +157,7 @@ def sweep_one_seed(seed, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref,
 
 
 @njit(parallel=True, fastmath=True, cache=True)
-def sweep_ensemble(seeds, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref, legacy):
+def sweep_ensemble(seeds, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref, legacy, i0_form=0):
     ns = seeds.shape[0]
     na = alpha_values.shape[0]
     Sc = np.zeros((ns, na))
@@ -150,7 +166,7 @@ def sweep_ensemble(seeds, disease, alpha_values, steps, nx, ny, n, sigma, i0_ref
     R = np.zeros((ns, na))
     for i in prange(ns):
         s, c, ct, r = sweep_one_seed(seeds[i], disease, alpha_values, steps, nx, ny, n,
-                                     sigma, i0_ref, legacy)
+                                     sigma, i0_ref, legacy, i0_form)
         Sc[i, :] = s
         chi[i, :] = c
         chi_true[i, :] = ct
@@ -170,7 +186,7 @@ def validate():
     n = grid * grid
     _, chi_orig, _, _, _ = f3o.run_one_seed_core(seed, False, ALPHAS, steps, grid, grid, n)
     _, chi_mine, _, _ = sweep_one_seed(seed, False, ALPHAS, steps, grid, grid, n,
-                                    0.4, -1.0, True)   # legacy, sigma=0.4
+                                    0.4, -1.0, True, 0)   # legacy, sigma=0.4, as-submitted I0
     d = float(np.max(np.abs(chi_orig - chi_mine)))
     print(f"validate: max|chi_orig - chi_mine| = {d:.2e}  "
           f"{'IDENTICAL — sweep harness matches published' if d < 1e-9 else 'MISMATCH'}")

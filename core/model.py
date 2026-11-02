@@ -45,6 +45,17 @@ NOISE_MULT = 3.0          # the historical *3.0 on the lattice noise term
 SIGMA_OLD_NOMINAL = 0.4
 SIGMA_EM_PREDICTED = SIGMA_OLD_NOMINAL * np.sqrt(DT)   # ~0.0233
 
+# --- baseline excitability, I0 at A=0 ---
+# Fixed by the spontaneous-activity constraint, not chosen for network behaviour. The fine
+# sweep (phase3_spontaneous_fine.py -> processed_data/i0_fine.npz, 10 seeds) resolves the
+# silence-to-activity crossover to 0.01: no realization ignites at or below 0.37, ignition is
+# all-or-none per realization, and the fraction of realizations that ignite rises 2/10 at 0.38
+# to 10/10 at 0.42. 0.42 is therefore the lowest baseline at which EVERY seed in the figure
+# ensemble satisfies the constraint, at 0.439 +/- 0.198 transients/min/cell (3.6x the somatic
+# rate of Hirase et al.; the superseded 0.45 baseline produced a larger discrepancy.
+I0_BASE = 0.42
+I0_BASE_LEGACY = 0.45     # what Figs 1-4 were produced at before the fine sweep; kept for diffs
+
 
 @njit(fastmath=True, cache=True)
 def laplacian(Z):
